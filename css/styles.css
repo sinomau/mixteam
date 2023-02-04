@@ -1,0 +1,33 @@
+
+header{
+  background-image: url("../assets/img/5618236.jpg");
+  backgrond-size: cover;
+}
+
+.navbar a{
+  color: aliceblue;
+}
+
+.appName {
+  color: aliceblue;
+  font-size: large;
+  font-weight: 800;
+}
+
+.list-Players {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  align-content: center;
+}
+
+
+.btn-delete {
+  width: auto;
+}
+
+footer{
+  display: flex;
+  justify-content: space-around;
+  align-items: self-start;
+}

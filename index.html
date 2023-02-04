@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document</title>
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/@picocss/pico@1.*/css/pico.min.css"
+    />
+    <link
+    rel="stylesheet"
+    href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"
+  />
+    <link rel="stylesheet" href="./css/styles.css" />
+  </head>
+  <body>
+    <header>
+      <nav class="navbar">
+        <ul>
+          <li class="appName animate__animated animate__shakeY"><strong>Mixer-Team Football</strong></li>
+        </ul>
+        <ul>
+          <li><a href="index.html">Inicio</a></li>
+
+          <li><a href="#" role="button">Mixer</a></li>
+        </ul>
+      </nav>
+    </header>
+    <article class="input-container">
+      <form action="">
+        <h1>Make your teams!</h1>
+       <p>Añadí cuatro o mas jugadores, para dividirlos en dos equipos!</p>
+        <input
+          type="text"
+          class="input"
+          placeholder="Nombre Jugador"
+          autocomplete="off"
+          required
+        />
+        <button class="list-button">Ingresar Jugador</button>
+        <button class="button-mix">Mezclar</button>
+      </form>
+      <div class="list-players">
+        <h5>Jugadores Añadidos :</h5>
+        <ul class="list"></ul>
+      </div>
+      <div class="container-teams">
+        <h5>Equipos :</h5>
+        <ol class=" list-containerOne"></ol>
+        <ol class=" list-containerTwo"></ol>
+      </div>
+    </article>
+    <footer>
+      <p>Dev-ms </p>
+    </footer>
+    <script src="./script/app.js"></script>
+  </body>
+</html>
