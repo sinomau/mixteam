@@ -1,11 +1,4 @@
-
-header{
-  background-image: url("../assets/img/5618236.jpg");
-  backgrond-size: cover;
-}
-
-.navbar a{
-  color: aliceblue;
+header {
 }
 
 .appName {
@@ -21,13 +14,32 @@ header{
   align-content: center;
 }
 
-
 .btn-delete {
   width: auto;
 }
 
-footer{
+footer {
   display: flex;
   justify-content: space-around;
   align-items: self-start;
+}
+
+.container-teams {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-around;
+  align-items: center;
+  align-content: center;
+}
+
+.container-teams ol {
+  text-align: center;
+  align-items: start;
+}
+
+.tittle-team {
+  text-align: center;
+}
+h5 {
+  text-align: center !important;
 }

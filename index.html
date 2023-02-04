@@ -4,35 +4,29 @@
     <meta charset="UTF-8" />
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Document</title>
+    <title>Mix Team</title>
     <link
       rel="stylesheet"
-      href="https://unpkg.com/@picocss/pico@1.*/css/pico.min.css"
-    />
-    <link
-      rel="stylesheet"
-      href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"
+      href="https://unpkg.com/@picocss/pico@1.*/css/pico.classless.min.css"
     />
     <link rel="stylesheet" href="./css/styles.css" />
   </head>
   <body>
     <header>
-      <nav class="navbar">
+      <nav>
         <ul>
-          <li class="appName animate__animated animate__shakeY">
-            <strong>Mixer-Team Football</strong>
-          </li>
+          <li><strong>MYT</strong></li>
         </ul>
         <ul>
-          <li><a href="index.html">Inicio</a></li>
-
-          <li><a href="#" role="button">Mixer</a></li>
+          <li><a href="#">Inicio</a></li>
+          <li><a href="#">Clima</a></li>
+          <li><a href="#" role="button">Enviar Whatsapp</a></li>
         </ul>
       </nav>
     </header>
-    <article class="input-container">
+    <main class="input-container">
       <form class="form">
-        <h1>Make your teams!</h1>
+        <h1>Crea tus Equipos!</h1>
         <p>Añadí cuatro o mas jugadores, para dividirlos en dos equipos!</p>
         <input
           type="text"
@@ -48,12 +42,15 @@
         <h5>Jugadores Añadidos :</h5>
         <ul class="list"></ul>
       </div>
+      <div class="tittle-team">
+        <h5 class="text-center">Equipos :</h5>
+      </div>
       <div class="container-teams">
-        <h5>Equipos :</h5>
         <ol class="list-containerOne"></ol>
         <ol class="list-containerTwo"></ol>
       </div>
-    </article>
+      <div class="container-delete"></div>
+    </main>
     <footer>
       <p>Dev-ms</p>
     </footer>

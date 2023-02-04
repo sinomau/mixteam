@@ -7,19 +7,19 @@ const deleteAll = document.createElement("button");
 const input = document.querySelector(".input");
 const listPlayers = document.querySelector(".list");
 const containerTeams = document.querySelector(".container-teams");
+const containerDelete = document.querySelector(".container-delete");
+
 
 let players = [];
 let teamOne = [];
 let teamTwo = [];
 
-window.addEventListener("load",addPlayer)
+window.addEventListener("load", addPlayer);
 buttonList.addEventListener("click", (e) => {
   e.preventDefault();
-  console.log("object")
-  addPlayer()
+  console.log("object");
+  addPlayer();
 });
-
-
 
 function addPlayer() {
   const value = input.value;
@@ -30,14 +30,13 @@ function addPlayer() {
     return;
   } else {
     const li = document.createElement("li");
-    li.innerHTML = `- ${value}` ;
+    li.innerHTML = `- ${value}`;
     li.classList = "list-Players";
     listPlayers.appendChild(li);
     li.appendChild(deletePlayer());
     players.push(value);
-    form.reset()
+    form.reset();
   }
-
 }
 
 function deletePlayer() {
@@ -58,10 +57,10 @@ buttonMix.addEventListener("click", (e) => {
   containerListOne.innerHTML = "";
   containerListTwo.innerHTML = "";
 
-  mezclar();
+  mixTeams();
 });
 
-function mezclar() {
+function mixTeams() {
   players.sort(() => Math.random() - 0.5);
   let divide = Math.floor(players.length / 2);
   let mixOne = players.slice(0, divide);
@@ -69,9 +68,9 @@ function mezclar() {
   teamOne.push(mixOne);
   teamTwo.push(mixTwo);
   listPlayers.innerHTML = "";
-  containerTeams.appendChild(deleteList());
-  containerListOne.textContent = "Equipo 1: ";
-  containerListTwo.textContent = "Equipo 2: ";
+  containerListOne.innerHTML = "Equipo 1: ";
+  containerListTwo.innerHTML = "Equipo 2: ";
+  containerDelete.appendChild(deleteList())
 
   mixOne.forEach((team1) => {
     const li = document.createElement("li");
@@ -94,6 +93,7 @@ function deleteList() {
     listPlayers.innerHTML = "";
     containerListOne.innerHTML = "";
     containerListTwo.innerHTML = "";
+    
   });
   return deleteAll;
 }
