@@ -10,13 +10,13 @@ header {
 .list-Players {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: baseline;
   align-content: center;
+  margin: 0;
+  height: auto;
 }
 
-.btn-delete {
-  width: auto;
-}
+
 
 footer {
   display: flex;
@@ -42,4 +42,9 @@ footer {
 }
 h5 {
   text-align: center !important;
+}
+
+
+.list li{
+  font-size: 15px;
 }

@@ -30,7 +30,7 @@ function addPlayer() {
     return;
   } else {
     const li = document.createElement("li");
-    li.innerHTML = `- ${value}`;
+    li.innerHTML = `${players.length +1} ${value}`;
     li.classList = "list-Players";
     listPlayers.appendChild(li);
     li.appendChild(deletePlayer());
@@ -40,8 +40,8 @@ function addPlayer() {
 }
 
 function deletePlayer() {
-  const deletePlayer = document.createElement("button");
-  deletePlayer.textContent = "X";
+  const deletePlayer = document.createElement("a");
+  deletePlayer.innerHTML = "❌";
   deletePlayer.classList.add("btn-delete");
 
   deletePlayer.addEventListener("click", (e) => {
