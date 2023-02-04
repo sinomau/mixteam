@@ -2,6 +2,8 @@ const containerListOne = document.querySelector(".list-containerOne");
 const containerListTwo = document.querySelector(".list-containerTwo");
 const buttonList = document.querySelector(".list-button");
 const buttonMix = document.querySelector(".button-mix");
+const form = document.querySelector(".form");
+const deleteAll = document.createElement("button");
 const input = document.querySelector(".input");
 const listPlayers = document.querySelector(".list");
 const containerTeams = document.querySelector(".container-teams");
@@ -11,8 +13,11 @@ let teamOne = [];
 let teamTwo = [];
 
 window.addEventListener("load",addPlayer)
-buttonList.addEventListener("click", addPlayer);
-buttonList.addEventListener("keydown", addPlayer);
+buttonList.addEventListener("click", (e) => {
+  e.preventDefault();
+  console.log("object")
+  addPlayer()
+});
 
 
 
@@ -21,7 +26,6 @@ function addPlayer() {
   players.length > 2
     ? buttonMix.removeAttribute("disabled")
     : buttonMix.setAttribute("disabled", "");
-
   if (value === "") {
     return;
   } else {
@@ -31,8 +35,9 @@ function addPlayer() {
     listPlayers.appendChild(li);
     li.appendChild(deletePlayer());
     players.push(value);
-    input.value = "";
+    form.reset()
   }
+
 }
 
 function deletePlayer() {
@@ -79,13 +84,14 @@ function mezclar() {
     containerListTwo.appendChild(li);
   });
 }
-const deleteAll = document.createElement("button");
 
 function deleteList() {
   deleteAll.innerHTML = "Eliminar Equipos";
   deleteAll.classList.add("delete-all");
-  deleteAll.addEventListener("click", () => {
+  deleteAll.addEventListener("click", (e) => {
+    e.preventDefault();
     players = [];
+    listPlayers.innerHTML = "";
     containerListOne.innerHTML = "";
     containerListTwo.innerHTML = "";
   });
