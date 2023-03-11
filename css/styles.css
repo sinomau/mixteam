@@ -124,3 +124,33 @@ h5 {
 .info-api-container {
   text-align: center;
 }
+
+
+.weather-container{
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  width: auto;
+  text-align: center;
+}
+
+
+.top-card {
+  
+  flex-direction: column;
+  justify-content: space-around !important;
+}
+
+.img-card {
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
+  width: 15%;
+}
+
+.info-card {
+ display: flex;
+ flex-direction: row;
+ justify-content: space-evenly;
+ margin-inline-start: 50px;
+}
