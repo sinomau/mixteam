@@ -1,0 +1,143 @@
+
+.appName {
+  color: aliceblue;
+  font-size: large;
+  font-weight: 800;
+}
+
+.list-Players {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  align-content: center;
+  margin: 0;
+  height: auto;
+}
+
+
+
+footer {
+  display: flex;
+  justify-content: space-around;
+  align-items: self-start;
+}
+
+.container-teams {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-around;
+  align-items: center;
+  align-content: center;
+}
+
+.container-teams ol {
+  text-align: center;
+  align-items: start;
+}
+
+.tittle-team {
+  text-align: center;
+}
+h5 {
+  text-align: center !important;
+}
+
+
+.list li{
+  font-size: 15px;
+}
+
+
+/*  Api Afa */
+.top-container{
+  display: flex !important;
+  flex-wrap: wrap;
+  justify-content: space-evenly;
+  align-items: center;
+  align-content: center;
+  
+}
+
+.logo-afa{
+
+  width: 10%;
+
+}
+
+.info-container{
+  display: flex !important;
+  justify-content: center;
+  align-items: center;
+  align-content: center;
+}
+
+.title-container{
+  
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  align-content: center;
+}
+
+.title-container h3{
+  margin: 0;
+}
+
+
+.local-logo{
+width: 20px;
+width: 20px;
+margin: 20px;
+  
+}
+
+
+.article-container{
+margin-top: 0;
+ padding:0px;
+}
+
+.info-container{
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  
+}
+
+
+.teams-container{
+  display:flex !important;
+  flex-wrap: nowrap;
+  flex-direction: row ;
+  justify-content: space-between;
+  margin-bottom: 50px;
+  align-items: center;
+  
+}
+
+.teams-container p{
+
+margin: 0;
+  
+}
+
+
+.ul-container{
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  align-content: flex-start;
+  flex-wrap: wrap;
+  margin-top: 50px;
+
+}
+
+.logo-tabla{
+  width: 25px;
+}
+
+thead tr th { 
+  position: sticky;
+  top: 0;
+}
+
