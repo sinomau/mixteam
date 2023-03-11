@@ -4,9 +4,7 @@ const visitanteContainer = document.querySelector(".visitante-container");
 const infoApiContainer = document.querySelector(".info-api-container");
 const buttonStandings = document.querySelector(".table-api");
 const buttonNextGames = document.querySelector(".next-api");
-const buttonNowGames = document.querySelector(".now-api");
 
-buttonNowGames.addEventListener("click", getGamesToday);
 buttonStandings.addEventListener("click", tablePositions);
 
 async function tablePositions() {
@@ -91,7 +89,7 @@ buttonNextGames.addEventListener("click", nextGames);
 function nextGames() {
   const round = sessionStorage.getItem("round");
   if (round != null) {
-    renderNextGames();
+    renderRounds();
   } else {
     const options = {
       method: "GET",
@@ -109,14 +107,14 @@ function nextGames() {
       .then((response) => {
         const data = response.response;
         sessionStorage.setItem("Rounds", JSON.stringify(data));
-        renderNextGames();
+        renderRounds();
       })
 
       .catch((err) => console.log(err));
   }
 }
 
-function renderNextGames() {
+function renderRounds() {
   const data = JSON.parse(sessionStorage.getItem("Rounds"));
 
   infoApiContainer.innerHTML = "";
@@ -155,70 +153,22 @@ function renderNextGames() {
 
 //function getData and save to SessionStorage
 
-function getGamesToday() {
-  console.log("hola");
-  const gamesToday = sessionStorage.getItem("gamesToday");
-  if (gamesToday != null) {
-    renderTodayGames();
-  } else {
-    const date = new Date();
-    const dateFormat = date.toISOString().split('T')[0]
-    const options = {
-      method: "GET",
-      headers: {
-        "X-RapidAPI-Key": "ea8ec82cebb59731159876110f477704",
-        "X-RapidAPI-Host": "api-football-v1.p.rapidapi.com",
-      },
-    };
+function getData() {
+  const options = {
+    method: "GET",
+    headers: {
+      "X-RapidAPI-Key": "ea8ec82cebb59731159876110f477704",
+      "X-RapidAPI-Host": "api-football-v1.p.rapidapi.com",
+    },
+  };
 
-    fetch(
-    `https://v3.football.api-sports.io/fixtures?league=128&season=2023&date=${dateFormat}&timezone=America/Argentina/Buenos_Aires`,
-      options
-    )
-      .then((response) => response.json())
-      .then((response) => {
-        const info = response.response;
-        sessionStorage.setItem("gamesToday", JSON.stringify(info));
-        renderTodayGames();
-      });
-  }
-}
-
-function renderTodayGames() {
-  const data = JSON.parse(sessionStorage.getItem("gamesToday"));
-
-  console.log(data);
-  infoApiContainer.innerHTML = "";
-  data.forEach((fixture) => {
-    const gameTime = fixture.league.round;
-  });
-
-  data.forEach((partidos) => {
-    const dateGame = new Date(partidos.fixture.date);
-    const dateArg = dateGame.toLocaleString("en-GB");
-    const homeLogo = partidos.teams.home.logo;
-    const awayLogo = partidos.teams.away.logo;
-
-    let goalHome = partidos.goals.home;
-    let goalAway = partidos.goals.away;
-    if (goalAway === null || goalHome === null) {
-      goalAway = 0;
-      goalHome = 0;
-    }
-    infoApiContainer.innerHTML += ` 
-  <article class="article-container">
-  <div class="info-container">
-  <p>Partido de la fecha : ${partidos.league.round}</p>
-  <div class="teams-container">
-  <p><img src="${homeLogo}"class="local-logo">${partidos.teams.home.name} -  ${goalHome}</p>
-  
-  <p><img src="${awayLogo}"class="local-logo">${partidos.teams.away.name} -  ${goalAway}</p>
-  </div>
-  <p>Horario : ${dateArg}</p>
-  <p>Estadio : ${partidos.fixture.venue.name}</p>
-  </div>
-  </article>
-
-  `;
-  });
+  fetch(
+    "https://v3.football.api-sports.io/standings?league=128&season=2023",
+    options
+  )
+    .then((response) => response.json())
+    .then((response) => {
+      const info = response.response;
+      const data = sessionStorage.setItem(info);
+    });
 }
