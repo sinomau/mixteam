@@ -6,8 +6,10 @@ const buttonStandings = document.querySelector(".table-api");
 const buttonNextGames = document.querySelector(".next-api");
 const buttonNowGames = document.querySelector(".now-api");
 
+/* Event handlers */
 buttonNowGames.addEventListener("click", getGamesToday);
 buttonStandings.addEventListener("click", tablePositions);
+buttonNextGames.addEventListener("click", nextGames);
 
 async function tablePositions() {
   infoApiContainer.ariaBusy = "true";
@@ -35,7 +37,6 @@ async function tablePositions() {
       renderTable();
     }
   } catch (error) {
-    console.error(error);
     infoApiContainer.innerHTML = `
     <h1>Contenido no disponible intente mas tarde</h1>
     `;
@@ -93,8 +94,6 @@ async function renderTable() {
   });
 }
 
-buttonNextGames.addEventListener("click", nextGames);
-
 async function nextGames() {
   infoApiContainer.ariaBusy = "true";
 
@@ -121,7 +120,6 @@ async function nextGames() {
       renderNextGames();
     }
   } catch (error) {
-    console.log(error);
     infoApiContainer.innerHTML = `
     <h1>Contenido no disponible intente mas tarde</h1>
     `;
@@ -172,7 +170,6 @@ function renderNextGames() {
 async function getGamesToday() {
   infoApiContainer.ariaBusy = "true";
   try {
-    console.log("hola");
     const gamesToday = sessionStorage.getItem("gamesToday");
     if (gamesToday != null) {
       renderTodayGames();
@@ -200,7 +197,6 @@ async function getGamesToday() {
     <h1>Contenido no disponible intente mas tarde</h1>
     `;
     infoApiContainer.ariaBusy = "false";
-    console.log(error);
   }
 }
 

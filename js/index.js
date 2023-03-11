@@ -63,6 +63,7 @@ function addPlayer() {
     players.push(value);
     let jugadores = JSON.stringify(players);
     localStorage.setItem("players", jugadores);
+    
     form.reset();
   }
 }
@@ -86,6 +87,7 @@ buttonMix.addEventListener("click", (e) => {
   containerListTwo.innerHTML = "";
   mixTeams()
   getPlayers();
+  buttonMix.innerHTML="Seguir Mezclando"
 });
 
 function mixTeams() {
@@ -111,6 +113,7 @@ function mixTeams() {
     localStorage.setItem("teamOne", teamOne);
     let teamTwo = JSON.stringify(mixTwo);
     localStorage.setItem("teamTwo", teamTwo);
+    
   }
 }
 
@@ -125,6 +128,9 @@ function deleteList() {
     listPlayers.innerHTML = "";
     containerListOne.innerHTML = "";
     containerListTwo.innerHTML = "";
+    containerDelete.innerHTML = "";
+    buttonMix.innerHTML="Mezclar"
+
   });
   return deleteAll;
 }
