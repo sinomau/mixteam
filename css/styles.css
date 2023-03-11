@@ -1,4 +1,3 @@
-
 .appName {
   color: aliceblue;
   font-size: large;
@@ -13,8 +12,6 @@
   margin: 0;
   height: auto;
 }
-
-
 
 footer {
   display: flex;
@@ -42,102 +39,88 @@ h5 {
   text-align: center !important;
 }
 
-
-.list li{
+.list li {
   font-size: 15px;
 }
 
-
 /*  Api Afa */
-.top-container{
+.top-container {
   display: flex !important;
   flex-wrap: wrap;
   justify-content: space-evenly;
   align-items: center;
   align-content: center;
-  
 }
 
-.logo-afa{
-
+.logo-afa {
   width: 10%;
-
 }
 
-.info-container{
+.info-container {
   display: flex !important;
   justify-content: center;
   align-items: center;
   align-content: center;
 }
 
-.title-container{
-  
+.title-container {
   display: flex;
   justify-content: center;
   align-items: center;
   align-content: center;
 }
 
-.title-container h3{
+.title-container h3 {
   margin: 0;
 }
 
-
-.local-logo{
-width: 20px;
-width: 20px;
-margin: 20px;
-  
+.local-logo {
+  width: 20px;
+  width: 20px;
+  margin: 20px;
 }
 
-
-.article-container{
-margin-top: 0;
- padding:0px;
+.article-container {
+  margin-top: 0;
+  padding: 0px;
 }
 
-.info-container{
+.info-container {
   display: flex;
   flex-direction: column;
   justify-content: center;
-  
 }
 
-
-.teams-container{
-  display:flex !important;
+.teams-container {
+  display: flex !important;
   flex-wrap: nowrap;
-  flex-direction: row ;
+  flex-direction: row;
   justify-content: space-between;
   margin-bottom: 50px;
   align-items: center;
-  
 }
 
-.teams-container p{
-
-margin: 0;
-  
+.teams-container p {
+  margin: 0;
 }
 
-
-.ul-container{
+.ul-container {
   display: flex;
   justify-content: space-around;
   align-items: center;
   align-content: flex-start;
   flex-wrap: wrap;
   margin-top: 50px;
-
 }
 
-.logo-tabla{
+.logo-tabla {
   width: 25px;
 }
 
-thead tr th { 
-  position: sticky;
-  top: 0;
+.table-container {
+  table-layout: auto;
 }
 
+.info-api-container {
+  text-align: center;
+}

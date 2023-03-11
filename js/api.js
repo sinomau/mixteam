@@ -10,6 +10,7 @@ buttonNowGames.addEventListener("click", getGamesToday);
 buttonStandings.addEventListener("click", tablePositions);
 
 async function tablePositions() {
+  infoApiContainer.ariaBusy = "true";
   const tableLocal = sessionStorage.getItem("apiData");
   try {
     if (tableLocal != null) {
@@ -28,12 +29,17 @@ async function tablePositions() {
         options
       );
       const data = await response.json();
+      console.log(data);
       const standings = data.response[0].league.standings[1];
       sessionStorage.setItem("apiData", JSON.stringify(standings));
       renderTable();
     }
   } catch (error) {
     console.error(error);
+    infoApiContainer.innerHTML = `
+    <h1>Contenido no disponible intente mas tarde</h1>
+    `;
+    infoApiContainer.ariaBusy = "false";
   }
 }
 
@@ -60,7 +66,7 @@ async function renderTable() {
           </tr>
         </thead>
       </table>
-    </figure>
+      </figure>
   </tbody>
 `;
   const thead = document.querySelector(".thead-container");
@@ -83,36 +89,43 @@ async function renderTable() {
             </tr>          `;
 
     tableContainer.append(thead);
+    infoApiContainer.ariaBusy = "false";
   });
 }
 
 buttonNextGames.addEventListener("click", nextGames);
 
-function nextGames() {
-  const round = sessionStorage.getItem("round");
-  if (round != null) {
-    renderNextGames();
-  } else {
-    const options = {
-      method: "GET",
-      headers: {
-        "X-RapidAPI-Key": "ea8ec82cebb59731159876110f477704",
-        "X-RapidAPI-Host": "api-football-v1.p.rapidapi.com",
-      },
-    };
+async function nextGames() {
+  infoApiContainer.ariaBusy = "true";
 
-    fetch(
-      "https://v3.football.api-sports.io/fixtures?league=128&season=2023&next=14&timezone=America/Argentina/Buenos_Aires",
-      options
-    )
-      .then((response) => response.json())
-      .then((response) => {
-        const data = response.response;
-        sessionStorage.setItem("Rounds", JSON.stringify(data));
-        renderNextGames();
-      })
+  try {
+    const round = sessionStorage.getItem("round");
+    if (round != null) {
+      renderNextGames();
+    } else {
+      const options = {
+        method: "GET",
+        headers: {
+          "X-RapidAPI-Key": "ea8ec82cebb59731159876110f477704",
+          "X-RapidAPI-Host": "api-football-v1.p.rapidapi.com",
+        },
+      };
 
-      .catch((err) => console.log(err));
+      const response = await fetch(
+        "https://v3.football.api-sports.io/fixtures?league=128&season=2023&next=14&timezone=America/Argentina/Buenos_Aires",
+        options
+      );
+      const data = await response.json();
+      sessionStorage.setItem("Rounds", JSON.stringify(data));
+
+      renderNextGames();
+    }
+  } catch (error) {
+    console.log(error);
+    infoApiContainer.innerHTML = `
+    <h1>Contenido no disponible intente mas tarde</h1>
+    `;
+    infoApiContainer.ariaBusy = "false";
   }
 }
 
@@ -150,44 +163,49 @@ function renderNextGames() {
   </article>
 
   `;
+    infoApiContainer.ariaBusy = "false";
   });
 }
 
 //function getData and save to SessionStorage
 
-function getGamesToday() {
-  console.log("hola");
-  const gamesToday = sessionStorage.getItem("gamesToday");
-  if (gamesToday != null) {
-    renderTodayGames();
-  } else {
-    const date = new Date();
-    const dateFormat = date.toISOString().split('T')[0]
-    const options = {
-      method: "GET",
-      headers: {
-        "X-RapidAPI-Key": "ea8ec82cebb59731159876110f477704",
-        "X-RapidAPI-Host": "api-football-v1.p.rapidapi.com",
-      },
-    };
+async function getGamesToday() {
+  infoApiContainer.ariaBusy = "true";
+  try {
+    console.log("hola");
+    const gamesToday = sessionStorage.getItem("gamesToday");
+    if (gamesToday != null) {
+      renderTodayGames();
+    } else {
+      const date = new Date();
+      const dateFormat = date.toISOString().split("T")[0];
+      const options = {
+        method: "GET",
+        headers: {
+          "X-RapidAPI-Key": "ea8ec82cebb59731159876110f477704",
+          "X-RapidAPI-Host": "api-football-v1.p.rapidapi.com",
+        },
+      };
 
-    fetch(
-    `https://v3.football.api-sports.io/fixtures?league=128&season=2023&date=${dateFormat}&timezone=America/Argentina/Buenos_Aires`,
-      options
-    )
-      .then((response) => response.json())
-      .then((response) => {
-        const info = response.response;
-        sessionStorage.setItem("gamesToday", JSON.stringify(info));
-        renderTodayGames();
-      });
+      const response = await fetch(
+        `https://v3.football.api-sports.io/fixtures?league=128&season=2023&date=${dateFormat}&timezone=America/Argentina/Buenos_Aires`,
+        options
+      );
+      const data = await response.json();
+      sessionStorage.setItem("gamesToday", JSON.stringify(data));
+      renderTodayGames();
+    }
+  } catch (error) {
+    infoApiContainer.innerHTML = `
+    <h1>Contenido no disponible intente mas tarde</h1>
+    `;
+    infoApiContainer.ariaBusy = "false";
+    console.log(error);
   }
 }
 
 function renderTodayGames() {
   const data = JSON.parse(sessionStorage.getItem("gamesToday"));
-
-  console.log(data);
   infoApiContainer.innerHTML = "";
   data.forEach((fixture) => {
     const gameTime = fixture.league.round;
@@ -220,5 +238,6 @@ function renderTodayGames() {
   </article>
 
   `;
+    infoApiContainer.ariaBusy = "false";
   });
 }
