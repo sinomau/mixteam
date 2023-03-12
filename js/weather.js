@@ -60,5 +60,8 @@ const renderData = async (response) => {
       .setAttribute("aria-busy", "false");
   } catch (err) {
     console.log(err);
+    document.querySelector(".weather-container").innerHTML = `
+    <h1>Contenido no disponible intente mas tarde</h1>
+    `;
   }
 };

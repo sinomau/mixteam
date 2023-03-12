@@ -31,12 +31,12 @@ async function tablePositions() {
         options
       );
       const data = await response.json();
-      console.log(data);
       const standings = data.response[0].league.standings[1];
       sessionStorage.setItem("apiData", JSON.stringify(standings));
       renderTable();
     }
   } catch (error) {
+    console.log(error);
     infoApiContainer.innerHTML = `
     <h1>Contenido no disponible intente mas tarde</h1>
     `;
@@ -114,7 +114,6 @@ async function nextGames() {
       );
       const data = await response.json();
       const resp = data.response;
-      console.log(resp);
       sessionStorage.setItem("Rounds", JSON.stringify(resp));
       renderNextGames();
     }
@@ -205,7 +204,6 @@ async function getGamesToday() {
 
 function renderTodayGames() {
   const data = JSON.parse(sessionStorage.getItem("gamesToday"));
-  console.log(data);
   infoApiContainer.innerHTML = "";
   data.forEach((fixture) => {
     const gameTime = fixture.league.round;
