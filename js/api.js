@@ -12,9 +12,9 @@ buttonStandings.addEventListener("click", tablePositions);
 buttonNextGames.addEventListener("click", nextGames);
 
 async function tablePositions() {
-  infoApiContainer.ariaBusy = "true";
-  const tableLocal = sessionStorage.getItem("apiData");
   try {
+    infoApiContainer.setAttribute("aria-busy", "true");
+    const tableLocal = sessionStorage.getItem("apiData");
     if (tableLocal != null) {
       // Si la información ya existe en SessionStorage, la muestra en pantalla
       renderTable();
@@ -40,7 +40,6 @@ async function tablePositions() {
     infoApiContainer.innerHTML = `
     <h1>Contenido no disponible intente mas tarde</h1>
     `;
-    infoApiContainer.ariaBusy = "false";
   }
 }
 
@@ -90,14 +89,13 @@ async function renderTable() {
             </tr>          `;
 
     tableContainer.append(thead);
-    infoApiContainer.ariaBusy = "false";
+    infoApiContainer.setAttribute("aria-busy", "false");
   });
 }
 
 async function nextGames() {
-  infoApiContainer.ariaBusy = "true";
-
   try {
+    infoApiContainer.setAttribute("aria-busy", "true");
     const round = sessionStorage.getItem("round");
     if (round != null) {
       renderNextGames();
@@ -115,22 +113,23 @@ async function nextGames() {
         options
       );
       const data = await response.json();
-      sessionStorage.setItem("Rounds", JSON.stringify(data));
-
+      const resp = data.response;
+      console.log(resp);
+      sessionStorage.setItem("Rounds", JSON.stringify(resp));
       renderNextGames();
     }
   } catch (error) {
+    console.log(error);
     infoApiContainer.innerHTML = `
     <h1>Contenido no disponible intente mas tarde</h1>
     `;
-    infoApiContainer.ariaBusy = "false";
   }
 }
 
 function renderNextGames() {
+  infoApiContainer.innerHTML = "";
   const data = JSON.parse(sessionStorage.getItem("Rounds"));
 
-  infoApiContainer.innerHTML = "";
   data.forEach((fixture) => {
     const gameTime = fixture.league.round;
   });
@@ -161,21 +160,24 @@ function renderNextGames() {
   </article>
 
   `;
-    infoApiContainer.ariaBusy = "false";
+    infoApiContainer.setAttribute("aria-busy", "false");
   });
 }
 
 //function getData and save to SessionStorage
 
 async function getGamesToday() {
-  infoApiContainer.ariaBusy = "true";
   try {
+    infoApiContainer.setAttribute("aria-busy", "true");
     const gamesToday = sessionStorage.getItem("gamesToday");
     if (gamesToday != null) {
       renderTodayGames();
     } else {
       const date = new Date();
-      const dateFormat = date.toISOString().split("T")[0];
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, "0");
+      const day = String(date.getDate()).padStart(2, "0");
+      const formattedDate = `${year}-${month}-${day}`;
       const options = {
         method: "GET",
         headers: {
@@ -185,23 +187,25 @@ async function getGamesToday() {
       };
 
       const response = await fetch(
-        `https://v3.football.api-sports.io/fixtures?league=128&season=2023&date=${dateFormat}&timezone=America/Argentina/Buenos_Aires`,
+        `https://v3.football.api-sports.io/fixtures?league=128&season=2023&date=${formattedDate}&timezone=America/Argentina/Buenos_Aires`,
         options
       );
       const data = await response.json();
-      sessionStorage.setItem("gamesToday", JSON.stringify(data));
+      const resp = data.response;
+      sessionStorage.setItem("gamesToday", JSON.stringify(resp));
       renderTodayGames();
     }
   } catch (error) {
+    console.log(error);
     infoApiContainer.innerHTML = `
     <h1>Contenido no disponible intente mas tarde</h1>
     `;
-    infoApiContainer.ariaBusy = "false";
   }
 }
 
 function renderTodayGames() {
   const data = JSON.parse(sessionStorage.getItem("gamesToday"));
+  console.log(data);
   infoApiContainer.innerHTML = "";
   data.forEach((fixture) => {
     const gameTime = fixture.league.round;
@@ -225,15 +229,16 @@ function renderTodayGames() {
   <p>Partido de la fecha : ${partidos.league.round}</p>
   <div class="teams-container">
   <p><img src="${homeLogo}"class="local-logo">${partidos.teams.home.name} -  ${goalHome}</p>
-  
   <p><img src="${awayLogo}"class="local-logo">${partidos.teams.away.name} -  ${goalAway}</p>
   </div>
+  <p>Estado de partido: ${partidos.fixture.status.elapsed} Min  ${partidos.fixture.status.long}</p>
   <p>Horario : ${dateArg}</p>
-  <p>Estadio : ${partidos.fixture.venue.name}</p>
+  <p>Arbitraje: ${partidos.fixture.referee}</p>
+  <p>Estadio : ${partidos.fixture.venue.name} -- ${partidos.fixture.venue.city}</p>
   </div>
   </article>
 
   `;
-    infoApiContainer.ariaBusy = "false";
+    infoApiContainer.setAttribute("aria-busy", "false");
   });
 }

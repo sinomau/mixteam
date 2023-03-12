@@ -1,5 +1,8 @@
 const apiWeather = async () => {
   try {
+    document
+      .querySelector(".weather-container")
+      .setAttribute("aria-busy", "true");
     const apikey = "92f1acb52c66fe442eea1eecf2a18cea";
     const lon = "-58.3772300";
     const lat = "-34.6131500";
@@ -37,9 +40,8 @@ const renderData = async (response) => {
     const weatherDescription = description.slice(0, 200) + "...";
     const uppercase = description.toUpperCase();
 
-
     document.querySelector(".weather-container").innerHTML = `
-        <article class="card-weather">
+        
         <div class="top-card">
         <h2>${city}</h2>
         <img class="img-card" src="${iconUrl}">
@@ -50,8 +52,12 @@ const renderData = async (response) => {
         <h3>ST: ${feelsLike}</h3>
         <h3>H: ${humidity}%<h3>
         </div>
-        </article>
+        
         `;
+
+    document
+      .querySelector(".weather-container")
+      .setAttribute("aria-busy", "false");
   } catch (err) {
     console.log(err);
   }
