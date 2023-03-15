@@ -192,6 +192,8 @@ async function getGamesToday() {
       const data = await response.json();
       const resp = data.response;
       sessionStorage.setItem("gamesToday", JSON.stringify(resp));
+      console.log(resp);
+
       renderTodayGames();
     }
   } catch (error) {
@@ -204,24 +206,31 @@ async function getGamesToday() {
 
 function renderTodayGames() {
   const data = JSON.parse(sessionStorage.getItem("gamesToday"));
-  infoApiContainer.innerHTML = "";
-  data.forEach((fixture) => {
-    const gameTime = fixture.league.round;
-  });
+  if (data.length === 0) {
+    infoApiContainer.innerHTML = `
+    <h1>No hay partidos definidos para el dia de hoy</h1>
+    `;
+    infoApiContainer.setAttribute("aria-busy", "false");
+  } else {
+    console.log(data);
+    infoApiContainer.innerHTML = "";
+    data.forEach((fixture) => {
+      const gameTime = fixture.league.round;
+    });
 
-  data.forEach((partidos) => {
-    const dateGame = new Date(partidos.fixture.date);
-    const dateArg = dateGame.toLocaleString("en-GB");
-    const homeLogo = partidos.teams.home.logo;
-    const awayLogo = partidos.teams.away.logo;
+    data.forEach((partidos) => {
+      const dateGame = new Date(partidos.fixture.date);
+      const dateArg = dateGame.toLocaleString("en-GB");
+      const homeLogo = partidos.teams.home.logo;
+      const awayLogo = partidos.teams.away.logo;
 
-    let goalHome = partidos.goals.home;
-    let goalAway = partidos.goals.away;
-    if (goalAway === null || goalHome === null) {
-      goalAway = 0;
-      goalHome = 0;
-    }
-    infoApiContainer.innerHTML += ` 
+      let goalHome = partidos.goals.home;
+      let goalAway = partidos.goals.away;
+      if (goalAway === null || goalHome === null) {
+        goalAway = 0;
+        goalHome = 0;
+      }
+      infoApiContainer.innerHTML += ` 
   <article class="article-container">
   <div class="info-container">
   <p>Partido de la fecha : ${partidos.league.round}</p>
@@ -237,6 +246,7 @@ function renderTodayGames() {
   </article>
 
   `;
-    infoApiContainer.setAttribute("aria-busy", "false");
-  });
+      infoApiContainer.setAttribute("aria-busy", "false");
+    });
+  }
 }
