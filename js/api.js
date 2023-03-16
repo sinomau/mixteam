@@ -342,7 +342,7 @@ function renderGameLive() {
   <p><img src="${homeLogo}"class="local-logo">${partidos.teams.home.name} -  ${goalHome}</p>
   <p><img src="${awayLogo}"class="local-logo">${partidos.teams.away.name} -  ${goalAway}</p>
   </div>
-  <p>Tiempo Trasncurrido: ${partidos.fixture.status.elapsed} Min  </p>
+  <p>Tiempo Transcurrido: ${partidos.fixture.status.elapsed} Min  </p>
   <p>Estado de partido: ${partidos.fixture.status.long}</p>
   <p>Horario : ${dateArg}</p>
   <p>Arbitraje: ${partidos.fixture.referee}</p>
