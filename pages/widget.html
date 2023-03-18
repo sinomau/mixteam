@@ -1,53 +1,66 @@
 <!DOCTYPE html>
 <html lang="en">
-    <head>
-        <meta charset="UTF-8" />
-        <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>Mix Team</title>
-        <link
-          rel="stylesheet"
-          href="https://unpkg.com/@picocss/pico@1.*/css/pico.classless.min.css"
-        />
-        <link rel="stylesheet" href="../css/styles.css" />
-        
-      </head>
-<body>
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Mix Team</title>
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/@picocss/pico@1.*/css/pico.classless.min.css" />
+    <link rel="stylesheet" href="../css/styles.css" />
+  </head>
+  <body>
     <header>
-        <nav>
-          <ul>
-            <li><strong>MiXteam</strong></li>
-          </ul>
-          <ul>
-            <li><a href="../index.html">Inicio</a></li>
-            <li><a href="./weather.html">Clima</a></li>
-            <li><a href="./widget.html">Liga Argentina 2023</a></li>
-          </ul>
-        </nav>
-      </header>
-      <main class="main-container">
-        <article class="article-container">
-          <div class="top-container">
-            <div class="info-container">
-            <h3>Liga Argentina de futbol</h3>
-          <img class="logo-afa" src="../assets/img/logo-LPF.png" alt="Afa-logo">
+      <nav>
+        <ul>
+          <li><strong>MiXteam</strong></li>
+        </ul>
+        <ul>
+          <li><a href="../index.html">Inicio</a></li>
+          <li><a href="./weather.html">Clima</a></li>
+          <li><a href="./widget.html">Futbol Argentino</a></li>
+        </ul>
+      </nav>
+    </header>
+    <main class="main-container">
+      <article class="article-container">
+        <div class="top-container">
+          <h3>Liga Profesional Argentina</h3>
+          <img
+            class="logo-afa"
+            src="../assets/img/logo-LPF.png"
+            alt="Afa-logo" />
         </div>
-        <div class="ul-container">
-          <ul>
-            <li><a class="table-api" href="#">Tabla Posiciones</a></li>
-            <li><a class="now-api" href="#">Partidos Hoy</a></li>
-            <li><a class="next-api" href="#">Proximos Partidos</a></li>
-            <li><a class="live-api" href="#">Partidos en Vivo</a></li>
-          </ul>
-        </div>
-        </article>
-        <div aria-busy="false" class="info-api-container">
+      </article>
+      <details>
+        <summary>Partidos en vivo</summary>
+        <ul>
+          <li><a class="live-api" href="#">Todos los partidos</a></li>
+        </ul>
+        <div class="live-matchs" aria-busy="false"></div>
+      </details>
+      <details>
+        <summary>Liga Profesional Argentina</summary>
+        <ul class="ul-container">
+          <li><a class="table-api" href="#">Tabla Posiciones</a></li>
+          <li><a class="last-api" href="#">Resultados Ultima Fecha</a></li>
+          <li><a class="now-api" href="#">Partidos Hoy</a></li>
+          <li><a class="next-api" href="#">Proximos Partidos</a></li>
+        </ul>
+        <div class="info-api-container"></div>
+      </details>
 
-        </div>
-      </main>
-      <script src="../js/api.js"></script>
+      <details>
+        <summary>Primera B nacional</summary>
+        <ul>
+          <li>…</li>
+          <li>…</li>
+        </ul>
+      </details>
 
-</body>
+      <div aria-busy="false" class=""></div>
+    </main>
+    <script src="../js/api.js"></script>
+  </body>
 </html>
-
-       

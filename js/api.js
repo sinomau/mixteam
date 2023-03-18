@@ -3,16 +3,21 @@ const localContainer = document.querySelector(".local-container");
 const visitanteContainer = document.querySelector(".visitante-container");
 const infoApiContainer = document.querySelector(".info-api-container");
 const buttonStandings = document.querySelector(".table-api");
+const buttonLastGames = document.querySelector(".last-api");
 const buttonNextGames = document.querySelector(".next-api");
 const buttonNowGames = document.querySelector(".now-api");
 const buttonLiveGames = document.querySelector(".live-api");
+const liveMatchContainer = document.querySelector(".live-matchs");
 
 /* Event handlers */
+
 buttonNowGames.addEventListener("click", getGamesToday);
 buttonStandings.addEventListener("click", tablePositions);
 buttonNextGames.addEventListener("click", nextGames);
 buttonLiveGames.addEventListener("click", getGameLive);
+buttonLastGames.addEventListener("click", lastGames);
 
+infoApiContainer.setAttribute("aria-busy", "false");
 async function tablePositions() {
   try {
     infoApiContainer.setAttribute("aria-busy", "true");
@@ -165,6 +170,93 @@ function renderNextGames() {
   });
 }
 
+async function lastGames() {
+  try {
+    infoApiContainer.setAttribute("aria-busy", "true");
+    const round = sessionStorage.getItem("lastGames");
+    if (round != null) {
+      renderLastGames();
+    } else {
+      const options = {
+        method: "GET",
+        headers: {
+          "X-RapidAPI-Key": "ea8ec82cebb59731159876110f477704",
+          "X-RapidAPI-Host": "api-football-v1.p.rapidapi.com",
+        },
+      };
+
+      const response = await fetch(
+        "https://v3.football.api-sports.io/fixtures?league=128&season=2023&last=15&timezone=America/Argentina/Buenos_Aires",
+        options
+      );
+      const data = await response.json();
+      const resp = data.response;
+      sessionStorage.setItem("lastGames", JSON.stringify(resp));
+      renderLastGames();
+    }
+  } catch (error) {
+    console.log(error);
+    infoApiContainer.innerHTML = `
+    <h1>Contenido no disponible intente mas tarde</h1>
+    `;
+  }
+}
+
+function renderLastGames() {
+  infoApiContainer.innerHTML = "";
+  const data = JSON.parse(sessionStorage.getItem("lastGames"));
+  const filterFixture = data.filter(
+    (data) => data.fixture.status.long === "Match Finished"
+  );
+  filterFixture.forEach((partidos) => {
+    const dateGame = new Date(partidos.fixture.date);
+    const dateArg = dateGame.toLocaleString("en-GB");
+    const homeLogo = partidos.teams.home.logo;
+    const awayLogo = partidos.teams.away.logo;
+
+    let goalHome = partidos.goals.home;
+    let goalAway = partidos.goals.away;
+    if (goalAway === null || goalHome === null) {
+      goalAway = 0;
+      goalHome = 0;
+    }
+
+    if (partidos.fixture.referee === null) {
+      partidos.fixture.referee = "Sin Informacion";
+    }
+
+    if (partidos.fixture.status.long === "Second Half") {
+      partidos.fixture.status.long = "Segundo Tiempo";
+    } else if (partidos.fixture.status.long === "First Half") {
+      partidos.fixture.status.long = "Primer Tiempo";
+    } else if (partidos.fixture.status.long === "Halftime") {
+      partidos.fixture.status.long = "Entretiempo";
+    } else if (partidos.fixture.status.long === "Match Finished") {
+      partidos.fixture.status.long = "Terminado";
+    }
+
+    infoApiContainer.innerHTML += ` 
+  <article class="article-container">
+  <div class="info-container">
+  <p>Partido de la fecha : ${partidos.league.round}</p>
+  <p>Torneo: ${partidos.league.name}</p>
+  <div class="teams-container">
+  <p><img src="${homeLogo}"class="local-logo">${partidos.teams.home.name} -  ${goalHome}</p>
+  <p><img src="${awayLogo}"class="local-logo">${partidos.teams.away.name} -  ${goalAway}</p>
+  </div>
+  <p>Tiempo Transcurrido: ${partidos.fixture.status.elapsed} Min  </p>
+  <p>Estado de partido: ${partidos.fixture.status.long}</p>
+  <p>Horario : ${dateArg}</p>
+  <p>Arbitraje: ${partidos.fixture.referee}</p>
+  <p>Estadio : ${partidos.fixture.venue.name} -- ${partidos.fixture.venue.city}</p>
+  </div>
+  </article>
+
+  `;
+    infoApiContainer.setAttribute("aria-busy", "false");
+  });
+}
+
 //function getData and save to SessionStorage
 
 async function getGamesToday() {
@@ -214,7 +306,6 @@ function renderTodayGames() {
     `;
     infoApiContainer.setAttribute("aria-busy", "false");
   } else {
-    console.log(data);
     infoApiContainer.innerHTML = "";
     data.forEach((fixture) => {
       const gameTime = fixture.league.round;
@@ -240,7 +331,6 @@ function renderTodayGames() {
   <p><img src="${homeLogo}"class="local-logo">${partidos.teams.home.name} -  ${goalHome}</p>
   <p><img src="${awayLogo}"class="local-logo">${partidos.teams.away.name} -  ${goalAway}</p>
   </div>
-  <p>Estado de partido: ${partidos.fixture.status.elapsed} Min  ${partidos.fixture.status.long}</p>
   <p>Horario : ${dateArg}</p>
   <p>Arbitraje: ${partidos.fixture.referee}</p>
   <p>Estadio : ${partidos.fixture.venue.name} -- ${partidos.fixture.venue.city}</p>
@@ -255,7 +345,7 @@ function renderTodayGames() {
 
 async function getGameLive() {
   try {
-    infoApiContainer.setAttribute("aria-busy", "true");
+    liveMatchContainer.setAttribute("aria-busy", "true");
     const gameLive = sessionStorage.getItem("gameLive");
     if (gameLive != null) {
       renderGameLive();
@@ -280,7 +370,6 @@ async function getGameLive() {
       const data = await response.json();
       const resp = data.response;
       sessionStorage.setItem("gameLive", JSON.stringify(resp));
-      console.log(resp);
 
       renderGameLive();
     }
@@ -295,45 +384,42 @@ async function getGameLive() {
 function renderGameLive() {
   const data = JSON.parse(sessionStorage.getItem("gameLive"));
   if (data.length === 0) {
-    infoApiContainer.innerHTML = `
+    liveMatchContainer.innerHTML = `
     <h1>No hay partidos en vivo en este momento</h1>
     `;
-    infoApiContainer.setAttribute("aria-busy", "false");
+    liveMatchContainer.setAttribute("aria-busy", "false");
   } else {
-    console.log(data);
-    infoApiContainer.innerHTML = "";
-    data.forEach((fixture) => {
-      const gameTime = fixture.league.round;
-    });
+    liveMatchContainer.innerHTML = "";
+  }
 
-    data.forEach((partidos) => {
-      const dateGame = new Date(partidos.fixture.date);
-      const dateArg = dateGame.toLocaleString("en-GB");
-      const homeLogo = partidos.teams.home.logo;
-      const awayLogo = partidos.teams.away.logo;
+  data.forEach((partidos) => {
+    const dateGame = new Date(partidos.fixture.date);
+    const dateArg = dateGame.toLocaleString("en-GB");
+    const homeLogo = partidos.teams.home.logo;
+    const awayLogo = partidos.teams.away.logo;
 
-      let goalHome = partidos.goals.home;
-      let goalAway = partidos.goals.away;
-      if (goalAway === null || goalHome === null) {
-        goalAway = 0;
-        goalHome = 0;
-      }
+    let goalHome = partidos.goals.home;
+    let goalAway = partidos.goals.away;
+    if (goalAway === null || goalHome === null) {
+      goalAway = 0;
+      goalHome = 0;
+    }
 
-      if (partidos.fixture.referee === null) {
-        partidos.fixture.referee = "Sin Informacion";
-      }
+    if (partidos.fixture.referee === null) {
+      partidos.fixture.referee = "Sin Informacion";
+    }
 
-      if (partidos.fixture.status.long === "Second Half") {
-        partidos.fixture.status.long = "Segundo Tiempo";
-      } else if (partidos.fixture.status.long === "First Half") {
-        partidos.fixture.status.long = "Primer Tiempo";
-      } else if (partidos.fixture.status.long === "Halftime") {
-        partidos.fixture.status.long = "Entretiempo";
-      } else if (partidos.fixture.status.long === "Match Finished") {
-        partidos.fixture.status.long = "Terminado";
-      }
+    if (partidos.fixture.status.long === "Second Half") {
+      partidos.fixture.status.long = "Segundo Tiempo";
+    } else if (partidos.fixture.status.long === "First Half") {
+      partidos.fixture.status.long = "Primer Tiempo";
+    } else if (partidos.fixture.status.long === "Halftime") {
+      partidos.fixture.status.long = "Entretiempo";
+    } else if (partidos.fixture.status.long === "Match Finished") {
+      partidos.fixture.status.long = "Terminado";
+    }
 
-      infoApiContainer.innerHTML += ` 
+    liveMatchContainer.innerHTML += ` 
   <article class="article-container">
   <div class="info-container">
   <p>Partido de la fecha : ${partidos.league.round}</p>
@@ -351,7 +437,6 @@ function renderGameLive() {
   </article>
 
   `;
-      infoApiContainer.setAttribute("aria-busy", "false");
-    });
-  }
+    liveMatchContainer.setAttribute("aria-busy", "false");
+  });
 }

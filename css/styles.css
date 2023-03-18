@@ -46,14 +46,21 @@ h5 {
 /*  Api Afa */
 .top-container {
   display: flex !important;
+  flex-direction: row;
   flex-wrap: wrap;
   justify-content: space-evenly;
   align-items: center;
   align-content: center;
 }
 
+.top-container h3 {
+  margin: 0;
+}
+
 .logo-afa {
-  width: 10%;
+  display: flex;
+  padding: 10px;
+  width: 50px;
 }
 
 .info-container {
@@ -61,17 +68,6 @@ h5 {
   justify-content: center;
   align-items: center;
   align-content: center;
-}
-
-.title-container {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  align-content: center;
-}
-
-.title-container h3 {
-  margin: 0;
 }
 
 .local-logo {
@@ -125,8 +121,20 @@ h5 {
   text-align: center;
 }
 
+.ul-container {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  padding: 0;
+}
 
-.weather-container{
+.ul-container li {
+  list-style-type: none !important;
+}
+
+
+/* api weather  */
+.weather-container {
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -134,9 +142,7 @@ h5 {
   text-align: center;
 }
 
-
 .top-card {
-  
   flex-direction: column;
   justify-content: space-around !important;
 }
@@ -149,8 +155,10 @@ h5 {
 }
 
 .info-card {
- display: flex;
- flex-direction: row;
- justify-content: space-evenly;
- margin-inline-start: 50px;
+  display: flex;
+  flex-direction: row;
+  justify-content: space-evenly;
+  margin-inline-start: 50px;
 }
+
+
