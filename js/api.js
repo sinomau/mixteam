@@ -471,37 +471,37 @@ function renderGameLive() {
     }
 
     liveMatchContainer.innerHTML += ` 
-    <article class="article-container">
-    <table>
-      <thead>
-        <tr>
-          <th scope="col">${partidos.league.round}</th>
-          <th scope="col">${partidos.league.name}</th>
-          <th scope="col">${partidos.fixture.status.long}</th>
-          <th scope="col">${partidos.fixture.status.elapsed}' Min</th>
-          <th scope="col"></th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td><img src="${homeLogo}" class="local-logo">${partidos.teams.home.name}</td>
-          <td>${goalHome}</td>
-          <td>${goalAway}</td>
-          <td><img src="${awayLogo}" class="local-logo">${partidos.teams.away.name}</td>
-        </tr>
-        <tr>
-          <td colspan="6">${dateArg}</td>
-        </tr>
-        <tr>
-          <td colspan="6">Arbitraje: ${partidos.fixture.referee}</td>
-        </tr>
-        <tr>
-          <td colspan="6">Estadio: ${partidos.fixture.venue.name} - ${partidos.fixture.venue.city}</td>
-        </tr>
-      </tbody>
-    </table>
-  </article>
-`;
+      <article class="article-container">
+      <table>
+        <thead>
+          <tr>
+            <th scope="col">${partidos.league.round}</th>
+            <th scope="col"></th>
+            <th scope="col"></th>
+            <th scope="col"></th>
+            <th scope="col"></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><img src="${homeLogo}" class="local-logo">${partidos.teams.home.name}</td>
+            <td>${goalHome}</td>
+            <td>${goalAway}</td>
+            <td><img src="${awayLogo}" class="local-logo">${partidos.teams.away.name}</td>
+          </tr>
+          <tr>
+            <td colspan="6">${dateArg}</td>
+          </tr>
+          <tr>
+            <td colspan="6">Arbitraje: ${partidos.fixture.referee}</td>
+          </tr>
+          <tr>
+            <td colspan="6">Estadio: ${partidos.fixture.venue.name} - ${partidos.fixture.venue.city}</td>
+          </tr>
+        </tbody>
+      </table>
+    </article>
+  `;
     liveMatchContainer.setAttribute("aria-busy", "false");
   });
 }
