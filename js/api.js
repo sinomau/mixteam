@@ -476,9 +476,9 @@ function renderGameLive() {
         <thead>
           <tr>
             <th scope="col">${partidos.league.round}</th>
-            <th scope="col"></th>
-            <th scope="col"></th>
-            <th scope="col"></th>
+            <th scope="col">${partidos.league.name}</th>
+            <th scope="col">${partidos.fixture.status.long}</th>
+            <th scope="col">${partidos.fixture.status.elapsed}' Min</th>
             <th scope="col"></th>
           </tr>
         </thead>
@@ -505,3 +505,4 @@ function renderGameLive() {
     liveMatchContainer.setAttribute("aria-busy", "false");
   });
 }
+
