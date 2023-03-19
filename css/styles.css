@@ -77,6 +77,8 @@ h5 {
 }
 
 .article-container {
+  display: flex;
+  justify-content: center;
   margin-top: 0;
   padding: 0px;
 }
@@ -87,13 +89,18 @@ h5 {
   justify-content: center;
 }
 
+.info-container p {
+  margin: 10px;
+}
+
 .teams-container {
   display: flex !important;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
   flex-direction: row;
-  justify-content: space-between;
+  justify-content: space-evenly;
   margin-bottom: 50px;
   align-items: center;
+
 }
 
 .teams-container p {

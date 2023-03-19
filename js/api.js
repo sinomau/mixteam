@@ -17,7 +17,6 @@ buttonNextGames.addEventListener("click", nextGames);
 buttonLiveGames.addEventListener("click", getGameLive);
 buttonLastGames.addEventListener("click", lastGames);
 
-infoApiContainer.setAttribute("aria-busy", "false");
 async function tablePositions() {
   try {
     infoApiContainer.setAttribute("aria-busy", "true");
@@ -50,7 +49,7 @@ async function tablePositions() {
   }
 }
 
-async function renderTable() {
+function renderTable() {
   infoApiContainer.innerHTML = "";
   const apiData = JSON.parse(sessionStorage.getItem("apiData"));
   infoApiContainer.innerHTML = `
@@ -79,7 +78,7 @@ async function renderTable() {
   const thead = document.querySelector(".thead-container");
   const tableContainer = document.querySelector(".table-container");
 
-  await apiData.map((positions) => {
+  apiData.map((positions) => {
     thead.innerHTML += `
             <tr>
             <td>${positions.rank}</td>
@@ -135,10 +134,7 @@ async function nextGames() {
 function renderNextGames() {
   infoApiContainer.innerHTML = "";
   const data = JSON.parse(sessionStorage.getItem("Rounds"));
-
-  data.forEach((fixture) => {
-    const gameTime = fixture.league.round;
-  });
+  data.sort((a, b) => new Date(a.fixture.date) - new Date(b.fixture.date));
 
   data.forEach((partidos) => {
     const dateGame = new Date(partidos.fixture.date);
@@ -152,19 +148,38 @@ function renderNextGames() {
       goalAway = 0;
       goalHome = 0;
     }
-    infoApiContainer.innerHTML += ` 
-  <article class="article-container">
-  <div class="info-container">
-  <p>Partido de la fecha : ${partidos.league.round}</p>
-  <div class="teams-container">
-  <img src="${homeLogo}"class="local-logo"><p>${partidos.teams.home.name}</p>
-  <img src="${awayLogo}"class="local-logo"><p>${partidos.teams.away.name}</p>
-  </div>
-  <p>Horario : ${dateArg}</p>
-  <p>Estadio : ${partidos.fixture.venue.name}</p>
-  </div>
-  </article>
+    console.log(data);
 
+    infoApiContainer.innerHTML += ` 
+      <article class="article-container">
+      <table>
+        <thead>
+          <tr>
+            <th scope="col">${partidos.league.round}</th>
+            <th scope="col"></th>
+            <th scope="col"></th>
+            <th scope="col"></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><img src="${homeLogo}" class="local-logo">${partidos.teams.home.name}</td>
+            <td>VS</td>
+            <td></td>
+            <td><img src="${awayLogo}" class="local-logo">${partidos.teams.away.name}</td>
+          </tr>
+          <tr>
+            <td colspan="6">${dateArg}</td>
+          </tr>
+          <tr>
+            <td colspan="6">Arbitraje: ${partidos.fixture.referee}</td>
+          </tr>
+          <tr>
+            <td colspan="6">Estadio: ${partidos.fixture.venue.name} - ${partidos.fixture.venue.city}</td>
+          </tr>
+        </tbody>
+      </table>
+    </article>
   `;
     infoApiContainer.setAttribute("aria-busy", "false");
   });
@@ -205,6 +220,8 @@ async function lastGames() {
 function renderLastGames() {
   infoApiContainer.innerHTML = "";
   const data = JSON.parse(sessionStorage.getItem("lastGames"));
+  data.sort((a, b) => new Date(b.fixture.date) - new Date(a.fixture.date));
+
   const filterFixture = data.filter(
     (data) => data.fixture.status.long === "Match Finished"
   );
@@ -236,28 +253,41 @@ function renderLastGames() {
     }
 
     infoApiContainer.innerHTML += ` 
-  <article class="article-container">
-  <div class="info-container">
-  <p>Partido de la fecha : ${partidos.league.round}</p>
-  <p>Torneo: ${partidos.league.name}</p>
-  <div class="teams-container">
-  <p><img src="${homeLogo}"class="local-logo">${partidos.teams.home.name} -  ${goalHome}</p>
-  <p><img src="${awayLogo}"class="local-logo">${partidos.teams.away.name} -  ${goalAway}</p>
-  </div>
-  <p>Tiempo Transcurrido: ${partidos.fixture.status.elapsed} Min  </p>
-  <p>Estado de partido: ${partidos.fixture.status.long}</p>
-  <p>Horario : ${dateArg}</p>
-  <p>Arbitraje: ${partidos.fixture.referee}</p>
-  <p>Estadio : ${partidos.fixture.venue.name} -- ${partidos.fixture.venue.city}</p>
-  </div>
-  </article>
+     <article class="article-container">
+     <table>
+       <thead>
+         <tr>
+           <th scope="col">${partidos.league.round}</th>
+           <th scope="col">${partidos.fixture.status.long}</th>
+           <th scope="col"></th>
+           <th scope="col"></th>
+           <th scope="col"></th>
+         </tr>
+       </thead>
+       <tbody>
+         <tr>
+           <td><img src="${homeLogo}" class="local-logo">${partidos.teams.home.name}</td>
+           <td>${goalHome}</td>
+           <td>${goalAway}</td>
+           <td><img src="${awayLogo}" class="local-logo">${partidos.teams.away.name}</td>
+         </tr>
+         <tr>
+           <td colspan="6">${dateArg}</td>
+         </tr>
+         <tr>
+           <td colspan="6">Arbitraje: ${partidos.fixture.referee}</td>
+         </tr>
+         <tr>
+           <td colspan="6">Estadio: ${partidos.fixture.venue.name} - ${partidos.fixture.venue.city}</td>
+         </tr>
+       </tbody>
+     </table>
+   </article>
+ `;
 
-  `;
     infoApiContainer.setAttribute("aria-busy", "false");
   });
 }
-
-//function getData and save to SessionStorage
 
 async function getGamesToday() {
   try {
@@ -300,6 +330,8 @@ async function getGamesToday() {
 
 function renderTodayGames() {
   const data = JSON.parse(sessionStorage.getItem("gamesToday"));
+  data.sort((a, b) => new Date(a.fixture.date) - new Date(b.fixture.date));
+
   if (data.length === 0) {
     infoApiContainer.innerHTML = `
     <h1>No hay partidos definidos para el día de hoy</h1>
@@ -324,19 +356,36 @@ function renderTodayGames() {
         goalHome = 0;
       }
       infoApiContainer.innerHTML += ` 
-  <article class="article-container">
-  <div class="info-container">
-  <p>Partido de la fecha : ${partidos.league.round}</p>
-  <div class="teams-container">
-  <p><img src="${homeLogo}"class="local-logo">${partidos.teams.home.name} -  ${goalHome}</p>
-  <p><img src="${awayLogo}"class="local-logo">${partidos.teams.away.name} -  ${goalAway}</p>
-  </div>
-  <p>Horario : ${dateArg}</p>
-  <p>Arbitraje: ${partidos.fixture.referee}</p>
-  <p>Estadio : ${partidos.fixture.venue.name} -- ${partidos.fixture.venue.city}</p>
-  </div>
-  </article>
-
+      <article class="article-container">
+      <table>
+        <thead>
+          <tr>
+            <th scope="col">${partidos.league.round}</th>
+            <th scope="col"></th>
+            <th scope="col"></th>
+            <th scope="col"></th>
+            <th scope="col"></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><img src="${homeLogo}" class="local-logo">${partidos.teams.home.name}</td>
+            <td>${goalHome}</td>
+            <td>${goalAway}</td>
+            <td><img src="${awayLogo}" class="local-logo">${partidos.teams.away.name}</td>
+          </tr>
+          <tr>
+            <td colspan="6">${dateArg}</td>
+          </tr>
+          <tr>
+            <td colspan="6">Arbitraje: ${partidos.fixture.referee}</td>
+          </tr>
+          <tr>
+            <td colspan="6">Estadio: ${partidos.fixture.venue.name} - ${partidos.fixture.venue.city}</td>
+          </tr>
+        </tbody>
+      </table>
+    </article>
   `;
       infoApiContainer.setAttribute("aria-busy", "false");
     });
@@ -364,7 +413,7 @@ async function getGameLive() {
       };
 
       const response = await fetch(
-        `https://v3.football.api-sports.io/fixtures?&live=128-129-130-131-132-133-134-517&timezone=America/Argentina/Buenos_Aires`,
+        `https://v3.football.api-sports.io/fixtures?&live=128-129-130-131-132-133-134-517-13-541-11-134&timezone=America/Argentina/Buenos_Aires`,
         options
       );
       const data = await response.json();
@@ -383,6 +432,8 @@ async function getGameLive() {
 
 function renderGameLive() {
   const data = JSON.parse(sessionStorage.getItem("gameLive"));
+  data.sort((a, b) => new Date(a.fixture.date) - new Date(b.fixture.date));
+
   if (data.length === 0) {
     liveMatchContainer.innerHTML = `
     <h1>No hay partidos en vivo en este momento</h1>
@@ -420,23 +471,37 @@ function renderGameLive() {
     }
 
     liveMatchContainer.innerHTML += ` 
-  <article class="article-container">
-  <div class="info-container">
-  <p>Partido de la fecha : ${partidos.league.round}</p>
-  <p>Torneo: ${partidos.league.name}</p>
-  <div class="teams-container">
-  <p><img src="${homeLogo}"class="local-logo">${partidos.teams.home.name} -  ${goalHome}</p>
-  <p><img src="${awayLogo}"class="local-logo">${partidos.teams.away.name} -  ${goalAway}</p>
-  </div>
-  <p>Tiempo Transcurrido: ${partidos.fixture.status.elapsed} Min  </p>
-  <p>Estado de partido: ${partidos.fixture.status.long}</p>
-  <p>Horario : ${dateArg}</p>
-  <p>Arbitraje: ${partidos.fixture.referee}</p>
-  <p>Estadio : ${partidos.fixture.venue.name} -- ${partidos.fixture.venue.city}</p>
-  </div>
+    <article class="article-container">
+    <table>
+      <thead>
+        <tr>
+          <th scope="col">${partidos.league.round}</th>
+          <th scope="col">${partidos.league.name}</th>
+          <th scope="col">${partidos.fixture.status.long}</th>
+          <th scope="col">${partidos.fixture.status.elapsed}' Min</th>
+          <th scope="col"></th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><img src="${homeLogo}" class="local-logo">${partidos.teams.home.name}</td>
+          <td>${goalHome}</td>
+          <td>${goalAway}</td>
+          <td><img src="${awayLogo}" class="local-logo">${partidos.teams.away.name}</td>
+        </tr>
+        <tr>
+          <td colspan="6">${dateArg}</td>
+        </tr>
+        <tr>
+          <td colspan="6">Arbitraje: ${partidos.fixture.referee}</td>
+        </tr>
+        <tr>
+          <td colspan="6">Estadio: ${partidos.fixture.venue.name} - ${partidos.fixture.venue.city}</td>
+        </tr>
+      </tbody>
+    </table>
   </article>
-
-  `;
+`;
     liveMatchContainer.setAttribute("aria-busy", "false");
   });
 }
