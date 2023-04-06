@@ -8,6 +8,8 @@ const input = document.querySelector(".input");
 const listPlayers = document.querySelector(".list");
 const containerTeams = document.querySelector(".container-teams");
 const containerDelete = document.querySelector(".container-delete");
+const tittleTeam = document.querySelector(".tittle-team");
+const listPlayersContainer = document.querySelector(".list-players-container");
 
 let players = [];
 
@@ -49,9 +51,10 @@ buttonList.addEventListener("click", (e) => {
 
 function addPlayer() {
   let value = input.value;
-  // players.length > 2
-  //   ? buttonMix.removeAttribute("disabled")
-  //   : buttonMix.setAttribute("disabled", "");
+  if (players.length > 0) {
+    buttonMix.removeAttribute("disabled");
+  }
+
   if (value === "") {
     return;
   } else {
@@ -63,7 +66,7 @@ function addPlayer() {
     players.push(value);
     let jugadores = JSON.stringify(players);
     localStorage.setItem("players", jugadores);
-    
+
     form.reset();
   }
 }
@@ -85,12 +88,13 @@ buttonMix.addEventListener("click", (e) => {
   e.preventDefault();
   containerListOne.innerHTML = "";
   containerListTwo.innerHTML = "";
-  mixTeams()
+  mixTeams();
   getPlayers();
-  buttonMix.innerHTML="Seguir Mezclando"
+  buttonMix.innerHTML = "Seguir Mezclando";
 });
 
 function mixTeams() {
+  tittleTeam.innerHTML = `<h2>Equipos</h2>`;
   let getPlayers = JSON.parse(localStorage.getItem("players"));
   if (getPlayers != null) {
     console.log(getPlayers);
@@ -113,7 +117,6 @@ function mixTeams() {
     localStorage.setItem("teamOne", teamOne);
     let teamTwo = JSON.stringify(mixTwo);
     localStorage.setItem("teamTwo", teamTwo);
-    
   }
 }
 
@@ -124,13 +127,14 @@ function deleteList() {
     e.preventDefault();
     players = [];
     localStorage.clear();
-
     listPlayers.innerHTML = "";
     containerListOne.innerHTML = "";
     containerListTwo.innerHTML = "";
     containerDelete.innerHTML = "";
-    buttonMix.innerHTML="Mezclar"
+    tittleTeam.innerHTML = "";
 
+    buttonMix.innerHTML = "Mezclar";
+    buttonMix.setAttribute("disabled", "");
   });
   return deleteAll;
 }
