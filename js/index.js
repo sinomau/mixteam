@@ -22,7 +22,7 @@ buttonList.addEventListener("click", (e) => {
 //toogle mix button
 
 function updateMixButtonState() {
-  if (players.length === 0) {
+  if (players.length <= 2) {
     buttonMix.setAttribute("disabled", "");
   } else {
     buttonMix.removeAttribute("disabled", "");

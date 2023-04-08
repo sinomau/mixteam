@@ -2,33 +2,38 @@ main {
   max-width: 1130px;
 }
 
+button{
+  background-color: rgb(66, 109, 145);
+  color: white;
+  border: none;
+  border-radius: 5px;
+  font-size: 15px;
+}
+
 header {
   padding: 10px 0 !important;
-  
+  background-color: rgb(66, 109, 145);
 }
+
+
 
 .table-live th{
   padding: 0!important;
 }
 
-nav {
-  padding: 20px !important;
-}
-
-.appName {
-  color: aliceblue;
-  font-size: large;
-  font-weight: 800;
-}
 
 .nav-container {
   display: flex !important;
   flex-direction: row;
   justify-content: space-around;
   align-items: center;
+  padding: 10px
+  
 }
-
-
+.nav-container a {
+  color: white;
+  
+}
 
 .list-Players {
   display: flex;
