@@ -5,24 +5,29 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Mix Team</title>
-    <link
-      rel="stylesheet"
-      href="https://unpkg.com/@picocss/pico@1.*/css/pico.classless.min.css" />
+    <link rel="stylesheet" href="https://unpkg.com/@picocss/pico@1.*/css/pico.fluid.classless.min.css">
+
     <link rel="stylesheet" href="./css/styles.css" />
   </head>
   <body>
-    <header>
-      <nav>
-        <ul>
-          <li><strong>MiXteam</strong></li>
-        </ul>
+    <header class="header-container">
+      <nav class="nav-container">
+        <div class="logo-container">
+          <img src="./assets/img/MiXteamW.png" alt="logo" />
+        </div>
         <ul>
           <li><a href="./index.html">Inicio</a></li>
-          <li><a href="./pages/weather.html">Clima</a></li>
           <li><a href="./pages/widget.html">Futbol Argentino</a></li>
         </ul>
       </nav>
     </header>
+    <div class="sub-nav">
+      <div aria-busy="false" class="weather-container"></div>
+      <div class="redes-container">
+        <i class="fa-brands fa-facebook"></i>
+        <i class="fa-brands fa-instagram"></i>
+        <i class="fa-brands fa-twitter"></i> </div>
+    </div>
     <main class="input-container">
       <form class="form">
         <h1>Crea tus Equipos!</h1>
@@ -34,7 +39,7 @@
           autocomplete="off"
           required />
         <div class="list-players-container">
-          <ul class="list"></ul>
+          <ul class="ul-list"></ul>
         </div>
         <button class="list-button">Ingresar Jugador</button>
         <button class="button-mix">Mezclar</button>
@@ -49,5 +54,7 @@
     <footer></footer>
     <script src="./js/index.js"></script>
     <script src="./js/weather.js"></script>
+    <script src="https://kit.fontawesome.com/9823d63da0.js" crossorigin="anonymous"></script>
+
   </body>
 </html>

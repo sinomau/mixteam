@@ -42,19 +42,11 @@ const renderData = async (response) => {
 
     document.querySelector(".weather-container").innerHTML = `
         
-        <div class="top-card">
-        <h2>${city}</h2>
         <img class="img-card" src="${iconUrl}">
-        <p>${uppercase}</p>
-        </div>
-        <div class="info-card">
-        <h3>T:  ${temp}</h3>
-        <h3>ST: ${feelsLike}</h3>
-        <h3>H: ${humidity}%<h3>
-        </div>
+        <p>${temp}°</p>
+        <p>  -  ${city}</p>
         
         `;
-
     document
       .querySelector(".weather-container")
       .setAttribute("aria-busy", "false");

@@ -57,7 +57,7 @@ function renderTable() {
     <figure>
       <table class="table-container">
         <thead class="thead-container">
-      <tr>
+          <tr>
           <th>Posicion</th>
           <th><span></span></th>
           <th>Club</th>
@@ -471,16 +471,14 @@ function renderGameLive() {
     }
 
     liveMatchContainer.innerHTML += ` 
-      <article class="article-container">
-      <table>
+      <article class="grid">
+      <table class="table-live">
         <thead>
           <tr>
             <th scope="col">${partidos.league.round}</th>
             <th scope="col">${partidos.league.name}</th>
-            <th scope="col">${partidos.fixture.status.long}</th>
-            <th scope="col">${partidos.fixture.status.elapsed}' Min</th>
             <th scope="col"></th>
-          </tr>
+            <th scope="col"></th>
         </thead>
         <tbody>
           <tr>
@@ -488,6 +486,12 @@ function renderGameLive() {
             <td>${goalHome}</td>
             <td>${goalAway}</td>
             <td><img src="${awayLogo}" class="local-logo">${partidos.teams.away.name}</td>
+          </tr>
+          <tr>
+          <td scope="col">${partidos.fixture.status.long}</td>
+          <td scope="col">${partidos.fixture.status.elapsed}' Min</td>
+          <td scope="col"></td>
+          <td scope="col"></td>
           </tr>
           <tr>
             <td colspan="6">${dateArg}</td>
@@ -500,9 +504,9 @@ function renderGameLive() {
           </tr>
         </tbody>
       </table>
-    </article>
+      </article>
+   
   `;
     liveMatchContainer.setAttribute("aria-busy", "false");
   });
 }
-

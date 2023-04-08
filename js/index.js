@@ -5,7 +5,7 @@ const buttonMix = document.querySelector(".button-mix");
 const form = document.querySelector(".form");
 const deleteAll = document.createElement("button");
 const input = document.querySelector(".input");
-const listPlayers = document.querySelector(".list");
+const ulList = document.querySelector(".ul-list");
 const containerTeams = document.querySelector(".container-teams");
 const containerDelete = document.querySelector(".container-delete");
 const tittleTeam = document.querySelector(".tittle-team");
@@ -13,16 +13,53 @@ const listPlayersContainer = document.querySelector(".list-players-container");
 
 let players = [];
 
+//listeners
+buttonList.addEventListener("click", (e) => {
+  e.preventDefault();
+  addPlayer();
+});
+
+//toogle mix button
+
+function updateMixButtonState() {
+  if (players.length === 0) {
+    buttonMix.setAttribute("disabled", "");
+  } else {
+    buttonMix.removeAttribute("disabled", "");
+  }
+}
+
+//add players to list
+
+function addPlayer() {
+  let value = input.value;
+  updateMixButtonState();
+
+  if (value === "") {
+    return;
+  } else {
+    const li = document.createElement("li");
+    li.textContent = `${players.length + 1} - ${value}`;
+    li.classList = "list-Players";
+    ulList.appendChild(li);
+    li.appendChild(deletePlayer());
+    players.push(value);
+    let stringPlayers = JSON.stringify(players);
+    localStorage.setItem("players", stringPlayers);
+    form.reset();
+  }
+}
+
 //Local Storage for players
 function getPlayers() {
   let teamOnePlayers = JSON.parse(localStorage.getItem("teamOne"));
   let teamTwoPlayers = JSON.parse(localStorage.getItem("teamTwo"));
-  console.log(teamOnePlayers);
 
   if (teamOnePlayers != null) {
-    listPlayers.innerHTML = "";
-    containerListOne.innerHTML = "Equipo 1: ";
-    containerListTwo.innerHTML = "Equipo 2: ";
+    tittleTeam.innerHTML = `<h2>Equipos</h2>`;
+    ulList.textContent = "";
+    containerListOne.textContent = "Equipo 1: ";
+    containerListTwo.textContent = "Equipo 2: ";
     containerDelete.appendChild(deleteList());
 
     teamOnePlayers.forEach((team1) => {
@@ -42,66 +79,41 @@ function getPlayers() {
 
 getPlayers();
 
-window.addEventListener("load", addPlayer);
-buttonList.addEventListener("click", (e) => {
-  e.preventDefault();
-
-  addPlayer();
-});
-
-function addPlayer() {
-  let value = input.value;
-  if (players.length > 0) {
-    buttonMix.removeAttribute("disabled");
-  }
-
-  if (value === "") {
-    return;
-  } else {
-    const li = document.createElement("li");
-    li.innerHTML = `${players.length + 1} ${value}`;
-    li.classList = "list-Players";
-    listPlayers.appendChild(li);
-    li.appendChild(deletePlayer());
-    players.push(value);
-    let jugadores = JSON.stringify(players);
-    localStorage.setItem("players", jugadores);
-
-    form.reset();
-  }
-}
+//delete player
 
 function deletePlayer() {
   const deletePlayer = document.createElement("a");
-  deletePlayer.innerHTML = "❌";
+  deletePlayer.textContent = "❌";
   deletePlayer.classList.add("btn-delete");
 
   deletePlayer.addEventListener("click", (e) => {
     players.splice(players.indexOf(e.target.textContent), 1);
     const item = e.target.parentElement;
-    listPlayers.removeChild(item);
+    ulList.removeChild(item);
   });
   return deletePlayer;
 }
 
 buttonMix.addEventListener("click", (e) => {
   e.preventDefault();
-  containerListOne.innerHTML = "";
-  containerListTwo.innerHTML = "";
+  containerListOne.textContent = "";
+  containerListTwo.textContent = "";
   mixTeams();
   getPlayers();
-  buttonMix.innerHTML = "Seguir Mezclando";
+
+  buttonMix.textContent = "Seguir Mezclando";
 });
 
 function mixTeams() {
+  let playersLocal = JSON.parse(localStorage.getItem("players"));
+
+  console.log(playersLocal);
   tittleTeam.innerHTML = `<h2>Equipos</h2>`;
-  let getPlayers = JSON.parse(localStorage.getItem("players"));
-  if (getPlayers != null) {
-    console.log(getPlayers);
-    getPlayers.sort(() => Math.random() - 0.5);
-    let divide = Math.floor(getPlayers.length / 2);
-    let mixOne = getPlayers.slice(0, divide);
-    let mixTwo = getPlayers.slice(divide);
+  if (playersLocal != null) {
+    playersLocal.sort(() => Math.random() - 0.5);
+    let divide = Math.floor(playersLocal.length / 2);
+    let mixOne = playersLocal.slice(0, divide);
+    let mixTwo = playersLocal.slice(divide);
     let teamOne = JSON.stringify(mixOne);
     localStorage.setItem("teamOne", teamOne);
     let teamTwo = JSON.stringify(mixTwo);
@@ -121,19 +133,19 @@ function mixTeams() {
 }
 
 function deleteList() {
-  deleteAll.innerHTML = "Eliminar Equipos";
+  deleteAll.textContent = "Eliminar Equipos";
   deleteAll.classList.add("delete-all");
   deleteAll.addEventListener("click", (e) => {
     e.preventDefault();
     players = [];
     localStorage.clear();
-    listPlayers.innerHTML = "";
-    containerListOne.innerHTML = "";
-    containerListTwo.innerHTML = "";
-    containerDelete.innerHTML = "";
-    tittleTeam.innerHTML = "";
+    ulList.textContent = "";
+    containerListOne.textContent = "";
+    containerListTwo.textContent = "";
+    containerDelete.textContent = "";
+    tittleTeam.textContent = "";
 
-    buttonMix.innerHTML = "Mezclar";
+    buttonMix.textContent = "Mezclar";
     buttonMix.setAttribute("disabled", "");
   });
   return deleteAll;
