@@ -173,12 +173,17 @@ h5 {
 }
 
 .sub-nav {
+  color: aliceblue;
   display: flex;
   flex-direction: row;
   justify-content: center;
   align-items: center;
   align-content: center;
   background-color: rgb(73, 82, 100);
+}
+
+.sub-nav p {
+  color: aliceblue;
 }
 
 .redes-container i {
