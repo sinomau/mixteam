@@ -85,6 +85,10 @@ const apiNews = async () => {
 
 apiNews();
 
+
+
+
+
 const renderNews = async (articles) => {
   const newsContainer = await document.querySelector(".news-container");
 
