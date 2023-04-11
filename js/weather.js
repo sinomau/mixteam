@@ -1,3 +1,5 @@
+const asideContainer = document.querySelector("news-main");
+
 const apiWeather = async () => {
   try {
     document
@@ -63,8 +65,6 @@ const renderData = async (response) => {
 
 const apiNews = async () => {
   try {
-    const newsContainer = document.querySelector(".news-container");
-    const allNewsContainer = document.querySelector(".all-news-container");
     const apikey = "41dca1972cc7453e9401a408e94faae4";
     const country = "ar";
     const category = "sports";
@@ -74,9 +74,10 @@ const apiNews = async () => {
     );
 
     const response = await news.json();
-    console.log(response);
-    renderNews(response, newsContainer);
-    renderAllNews(response, allNewsContainer);
+    const articles = response.articles;
+    console.log(articles);
+    renderNews(articles);
+    renderAllNews(articles);
   } catch (err) {
     console.log(err);
   }
@@ -84,13 +85,16 @@ const apiNews = async () => {
 
 apiNews();
 
-const renderNews = async (response, newsContainer) => {
+const renderNews = async (articles) => {
+  const newsContainer = await document.querySelector(".news-container");
+
   try {
-    console.log(response);
-    let news = response.articles;
+    if (newsContainer === null) {
+      return;
+    }
 
     let count = 0;
-    news.forEach((article) => {
+    articles.forEach((article) => {
       if (count >= 2) {
         return; // si ya se han agregado 2 noticias, detener la iteración
       }
@@ -110,7 +114,6 @@ const renderNews = async (response, newsContainer) => {
 
       count++;
     });
-    let = cardNews = document.querySelector(".card-news");
     newsContainer.innerHTML += `
     <a href="./pages/news.html">Ver más noticias</a>
   `;
@@ -123,20 +126,29 @@ const renderNews = async (response, newsContainer) => {
   }
 };
 
-const renderAllNews = async (response, allNewsContainer) => {
-  const news = response.articles;
-  news.forEach((article) => {
-    let { urlToImage, title, description, url } = article;
-    if (description === null) {
-      description = "";
+const renderAllNews = async (articles) => {
+  const allNewsContainer = document.querySelector(".all-news-container");
+
+  try {
+    if (allNewsContainer === null) {
+      return;
     }
 
-    allNewsContainer.innerHTML += `
-    <article class="card-all-news">
-      <h6>${title}</h6>
-      <p>${description}</p>
-      <a href="${url}" target="_blank">Ver más</a>
-    </article>
-  `;
-  });
+    articles.forEach((article) => {
+      let { urlToImage, title, description, url } = article;
+      if (description === null) {
+        description = "";
+      }
+
+      allNewsContainer.innerHTML += `
+      <article class="card-all-news">
+        <h6>${title}</h6>
+        <p>${description}</p>
+        <a href="${url}" target="_blank">Ver más</a>
+      </article>
+    `;
+    });
+  } catch (err) {
+    console.log(err);
+  }
 };
