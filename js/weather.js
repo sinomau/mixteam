@@ -25,8 +25,6 @@ apiWeather();
 
 const renderData = async (response) => {
   try {
-    console.log(response);
-
     const { icon, description } = response.weather[0];
     const temp = response.main.temp;
     const humidity = response.main.humidity;
@@ -63,96 +61,92 @@ const renderData = async (response) => {
   }
 };
 
-const apiNews = async () => {
-  try {
-    const apikey = "41dca1972cc7453e9401a408e94faae4";
-    const country = "ar";
-    const category = "sports";
+// const apiNews = async () => {
+//   try {
+//     const apikey = "41dca1972cc7453e9401a408e94faae4";
+//     const country = "ar";
+//     const category = "sports";
 
-    const news = await fetch(
-      `https://newsapi.org/v2/top-headlines?country=${country}&category=${category}&apiKey=${apikey}`
-    );
+//     const news = await fetch(
+//       `https://newsapi.org/v2/top-headlines?country=${country}&category=${category}&apiKey=${apikey}`
+//     );
 
-    const response = await news.json();
-    const articles = response.articles;
-    console.log(articles);
-    renderNews(articles);
-    renderAllNews(articles);
-  } catch (err) {
-    console.log(err);
-  }
-};
+//     const response = await news.json();
+//     const articles = response.articles;
+//     console.log(articles);
+//     renderNews(articles);
+//     renderAllNews(articles);
+//   } catch (err) {
+//     console.log(err);
+//   }
+// };
 
-apiNews();
+// apiNews();
 
+// const renderNews = async (articles) => {
+//   const newsContainer = await document.querySelector(".news-container");
 
+//   try {
+//     if (newsContainer === null) {
+//       return;
+//     }
 
+//     let count = 0;
+//     articles.forEach((article) => {
+//       if (count >= 2) {
+//         return; // si ya se han agregado 2 noticias, detener la iteración
+//       }
 
+//       let { urlToImage, title, description, url } = article;
+//       if (description === null) {
+//         description = "";
+//       }
 
-const renderNews = async (articles) => {
-  const newsContainer = await document.querySelector(".news-container");
+//       newsContainer.innerHTML += `
+//         <article class="card-news">
+//           <h6>${title}</h6>
+//           <p>${description}</p>
+//           <a href="${url}" target="_blank">Ver más</a>
+//         </article>
+//       `;
 
-  try {
-    if (newsContainer === null) {
-      return;
-    }
+//       count++;
+//     });
+//     newsContainer.innerHTML += `
+//     <a href="./pages/news.html">Ver más noticias</a>
+//   `;
+//     newsContainer.setAttribute("aria-busy", "false");
+//   } catch (err) {
+//     console.log(err);
+//     newsContainer.innerHTML = `
+//       <h1>Contenido no disponible, intente más tarde</h1>
+//     `;
+//   }
+// };
 
-    let count = 0;
-    articles.forEach((article) => {
-      if (count >= 2) {
-        return; // si ya se han agregado 2 noticias, detener la iteración
-      }
+// const renderAllNews = async (articles) => {
+//   const allNewsContainer = document.querySelector(".all-news-container");
 
-      let { urlToImage, title, description, url } = article;
-      if (description === null) {
-        description = "";
-      }
+//   try {
+//     if (allNewsContainer === null) {
+//       return;
+//     }
 
-      newsContainer.innerHTML += `
-        <article class="card-news">
-          <h6>${title}</h6>
-          <p>${description}</p>
-          <a href="${url}" target="_blank">Ver más</a>
-        </article>
-      `;
+//     articles.forEach((article) => {
+//       let { urlToImage, title, description, url } = article;
+//       if (description === null) {
+//         description = "";
+//       }
 
-      count++;
-    });
-    newsContainer.innerHTML += `
-    <a href="./pages/news.html">Ver más noticias</a>
-  `;
-    newsContainer.setAttribute("aria-busy", "false");
-  } catch (err) {
-    console.log(err);
-    newsContainer.innerHTML = `
-      <h1>Contenido no disponible, intente más tarde</h1>
-    `;
-  }
-};
-
-const renderAllNews = async (articles) => {
-  const allNewsContainer = document.querySelector(".all-news-container");
-
-  try {
-    if (allNewsContainer === null) {
-      return;
-    }
-
-    articles.forEach((article) => {
-      let { urlToImage, title, description, url } = article;
-      if (description === null) {
-        description = "";
-      }
-
-      allNewsContainer.innerHTML += `
-      <article class="card-all-news">
-        <h6>${title}</h6>
-        <p>${description}</p>
-        <a href="${url}" target="_blank">Ver más</a>
-      </article>
-    `;
-    });
-  } catch (err) {
-    console.log(err);
-  }
-};
+//       allNewsContainer.innerHTML += `
+//       <article class="card-all-news">
+//         <h6>${title}</h6>
+//         <p>${description}</p>
+//         <a href="${url}" target="_blank">Ver más</a>
+//       </article>
+//     `;
+//     });
+//   } catch (err) {
+//     console.log(err);
+//   }
+// };
