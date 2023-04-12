@@ -33,7 +33,7 @@ const renderData = async (response) => {
     const uvIndex = response.main.uvi;
     const lat = response.coord.lat;
     const lon = response.coord.lon;
-    const city = response.name;
+    let city = response.name;
     const sunrise = response.sys.sunrise;
     const sunset = response.sys.sunset;
     const iconUrl = `https://openweathermap.org/img/wn/${icon}@2x.png`;
