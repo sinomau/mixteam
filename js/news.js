@@ -13,9 +13,9 @@ const apiNews = async () => {
 
     const response = await news.json();
     const articles = response.articles;
-
-    renderNews(articles);
-    renderAllNews(articles);
+    console.log(articles);
+    await renderNews(articles);
+    await renderAllNews(articles);
   } catch (err) {
     console.log(err);
   }
