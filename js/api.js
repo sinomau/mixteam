@@ -148,6 +148,9 @@ function renderNextGames() {
       goalAway = 0;
       goalHome = 0;
     }
+    if (partidos.fixture.referee === null) {
+      partidos.fixture.referee = "Sin Informacion";
+    }
     console.log(data);
 
     infoApiContainer.innerHTML += ` 
@@ -442,6 +445,7 @@ function renderGameLive() {
   } else {
     liveMatchContainer.innerHTML = "";
   }
+  console.log(data);
 
   data.forEach((partidos) => {
     const dateGame = new Date(partidos.fixture.date);
@@ -471,41 +475,28 @@ function renderGameLive() {
     }
 
     liveMatchContainer.innerHTML += ` 
-      <article class="grid">
-      <table class="table-live">
-        <thead>
-          <tr>
-            <th scope="col">${partidos.league.round}</th>
-            <th scope="col">${partidos.league.name}</th>
-            <th scope="col"></th>
-            <th scope="col"></th>
-        </thead>
-        <tbody>
-          <tr>
-            <td><img src="${homeLogo}" class="local-logo">${partidos.teams.home.name}</td>
-            <td>${goalHome}</td>
-            <td>${goalAway}</td>
-            <td><img src="${awayLogo}" class="local-logo">${partidos.teams.away.name}</td>
-          </tr>
-          <tr>
-          <td scope="col">${partidos.fixture.status.long}</td>
-          <td scope="col">${partidos.fixture.status.elapsed}' Min</td>
-          <td scope="col"></td>
-          <td scope="col"></td>
-          </tr>
-          <tr>
-            <td colspan="6">${dateArg}</td>
-          </tr>
-          <tr>
-            <td colspan="6">Arbitraje: ${partidos.fixture.referee}</td>
-          </tr>
-          <tr>
-            <td colspan="6">Estadio: ${partidos.fixture.venue.name} - ${partidos.fixture.venue.city}</td>
-          </tr>
-        </tbody>
-      </table>
+      <article class="article-container">
+      <div class="live-container">
+      <div class="home-container-live">
+      <img src="${homeLogo}" class="local-logo-live">
+      <p>${partidos.teams.home.name}</p>
+      <p>${goalHome}</p>
+      </div>
+      <div class="status-container-live">
+      <div class="status-container-img">
+      <img src=${partidos.league.logo} class="local-logo-live">
+      </div>
+      <p>${partidos.league.name}</p>
+      <p>${partidos.fixture.status.elapsed} Min del ${partidos.fixture.status.long}</p>
+      <h5></h5>
+      </div>
+      <div class="away-container-live">
+      <img src="${awayLogo}" class="local-logo-live">
+      <p>${partidos.teams.away.name}</p>
+      <p>${goalAway}</p>
+      </div>
+      </div>
       </article>
-   
   `;
     liveMatchContainer.setAttribute("aria-busy", "false");
   });
