@@ -17,6 +17,7 @@ buttonNextGames.addEventListener("click", nextGames);
 buttonLiveGames.addEventListener("click", getGameLive);
 buttonLastGames.addEventListener("click", lastGames);
 
+
 async function tablePositions() {
   try {
     infoApiContainer.setAttribute("aria-busy", "true");

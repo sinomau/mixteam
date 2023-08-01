@@ -10,8 +10,32 @@ const containerTeams = document.querySelector(".container-teams");
 const containerDelete = document.querySelector(".container-delete");
 const tittleTeam = document.querySelector(".tittle-team");
 const listPlayersContainer = document.querySelector(".list-players-container");
+const shareButton = document.querySelector(".share-button");
 
 let players = [];
+
+shareButton.addEventListener("click", () => {
+  shareOnWhatsApp();
+});
+
+function shareOnWhatsApp() {
+  let teamOnePlayers = JSON.parse(localStorage.getItem("teamOne"));
+  let teamTwoPlayers = JSON.parse(localStorage.getItem("teamTwo"));
+
+  if (teamOnePlayers && teamTwoPlayers) {
+    const text = `miXteam\nTus equipos mezclados!\nEquipo 1: ${teamOnePlayers.join(", ")}\nEquipo 2: ${teamTwoPlayers.join(", ")}`;
+    const encodedText = encodeURIComponent(text);
+    const whatsappUrl = `https://wa.me/?text=${encodedText}`;
+
+    // Crea un elemento <a> y simula un clic para abrir WhatsApp
+    const link = document.createElement("a");
+    link.href = whatsappUrl;
+    link.target = "_blank"; // Para abrir en una nueva pestaña
+    link.click();
+  } else {
+    alert("Aún no has mezclado los equipos.");
+  }
+}
 
 //listeners
 buttonList.addEventListener("click", (e) => {

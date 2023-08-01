@@ -124,14 +124,13 @@ document.addEventListener("DOMContentLoaded", () => {
   apiget();
 });
 
-const newapi = async () => {
-  const access_key = "4e5c2314acde3523e1ff723de3e0c83e";
 
-  const link = `http://api.mediastack.com/v1/news?access_key=4e5c2314acde3523e1ff723de3e0c83e&countries=ar&categories=general`;
-
-  const response = await fetch(link);
-  const data = await response.json();
-  console.log(data);
-};
-
-newapi();
+window.addEventListener('scroll', function() {
+  const btnScrollTop = document.getElementById('btn-scroll-top');
+  const scrollY = window.scrollY;
+  if (scrollY > 100) {
+      btnScrollTop.style.display = 'block';
+  } else {
+      btnScrollTop.style.display = 'none';
+  }
+});
