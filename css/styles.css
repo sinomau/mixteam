@@ -184,6 +184,10 @@ header {
   border-color: #09ca70 !important;
 }
 
+.swal-overlay {
+  background-color: rgba(43, 165, 137, 0.45);
+}
+
 .container-teams {
   display: flex;
   flex-direction: row;

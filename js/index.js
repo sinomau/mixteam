@@ -33,7 +33,7 @@ function shareOnWhatsApp() {
     link.target = "_blank"; // Para abrir en una nueva pestaña
     link.click();
   } else {
-    alert("Aún no has mezclado los equipos.");
+    swal("Aún no has mezclado los equipos.");
   }
 }
 
