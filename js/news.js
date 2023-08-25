@@ -12,7 +12,6 @@ const apiget = async () => {
   if (dataLocalGet) {
     // Si los datos ya están en sessionStorage, usarlos directamente
     const articles = dataLocalGet.results;
-    console.log(articles);
     renderNews(articles);
     renderAllNews(articles);
   } else {
@@ -23,7 +22,6 @@ const apiget = async () => {
         const dataLocalSet = JSON.stringify(data);
         sessionStorage.setItem("data", dataLocalSet);
         const articles = data.results;
-        console.log(articles);
         renderNews(articles);
         renderAllNews(articles);
       })
@@ -41,8 +39,7 @@ const renderNews = async (articles) => {
 
     let count = 0;
     const fragment = document.createDocumentFragment(); // Crear un fragmento
-    const filterImg = articles.filter((article) => article.image_url !== null); // Filtrar los artículos que no tengan imagen
-    filterImg.forEach((article) => {
+    articles.forEach((article) => {
       if (count >= 2) {
         return;
       }
@@ -56,7 +53,11 @@ const renderNews = async (articles) => {
       articleElement.classList.add("card-all-news");
       articleElement.innerHTML = `
         <h6>${title}</h6>
-        ${image_url ? `<img class="img-news" src="${image_url}" alt="${title}" />` : ''}
+        ${
+          image_url
+            ? `<img class="img-news" src="${image_url}" alt="${title}" />`
+            : ""
+        }
         <div class="description-container">
           <p class="description">${description}</p>
         </div>
@@ -91,17 +92,21 @@ const renderAllNews = async (articles) => {
 
     const fragment = document.createDocumentFragment(); // Crear un fragmento
 
-      articles.forEach((article) => {
+    articles.forEach((article) => {
       let { image_url, title, description, url, link } = article;
       if (description === null || description === "") {
         description = "Descripción no disponible";
       }
-     
+
       const articleElement = document.createElement("article");
       articleElement.classList.add("card-all-news");
       articleElement.innerHTML = `
         <h1>${title}</h1>
-        ${image_url ? `<img class="img-news" src="${image_url}" alt="${title}" />` : ''}
+        ${
+          image_url
+            ? `<img class="img-news" src="${image_url}" alt="${title}" />`
+            : ""
+        }
         <div class="description-container">
           <p class="description">${description}</p>
         </div>
@@ -121,13 +126,12 @@ document.addEventListener("DOMContentLoaded", () => {
   apiget();
 });
 
-
-window.addEventListener('scroll', function() {
-  const btnScrollTop = document.getElementById('btn-scroll-top');
+window.addEventListener("scroll", function () {
+  const btnScrollTop = document.getElementById("btn-scroll-top");
   const scrollY = window.scrollY;
   if (scrollY > 100) {
-      btnScrollTop.style.display = 'block';
+    btnScrollTop.style.display = "block";
   } else {
-      btnScrollTop.style.display = 'none';
+    btnScrollTop.style.display = "none";
   }
 });

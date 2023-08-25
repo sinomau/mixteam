@@ -365,8 +365,6 @@ async function getGamesToday() {
       const data = await response.json();
       const resp = data.response;
       sessionStorage.setItem("gamesToday", JSON.stringify(resp));
-      console.log(resp);
-
       renderTodayGames();
     }
   } catch (error) {
@@ -488,7 +486,6 @@ function renderGameLive() {
   } else {
     liveMatchContainer.innerHTML = "";
   }
-  console.log(data);
 
   data.forEach((partidos) => {
     const dateGame = new Date(partidos.fixture.date);

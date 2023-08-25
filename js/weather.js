@@ -13,9 +13,8 @@ const apiWeather = async () => {
     const weather = await fetch(
       `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&units=${units}&lang=${lang}&appid=${apikey}`
     );
-    
+
     const response = await weather.json();
-    console.log(response)
 
     renderData(response);
   } catch (err) {
@@ -62,4 +61,3 @@ const renderData = async (response) => {
     `;
   }
 };
-
