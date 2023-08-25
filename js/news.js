@@ -2,7 +2,7 @@ const newsContainer = document.querySelector(".news-container");
 const allNewsContainer = document.querySelector(".all-news-container");
 
 const apikey = "pub_26486bb265635d713e2f42feb3fb43376796b";
-const country = "ar,cl,es";
+const country = "ar";
 const category = "sports";
 const apiUrl = `https://newsdata.io/api/1/news?apikey=${apikey}&country=${country}&category=${category}`;
 
@@ -56,7 +56,7 @@ const renderNews = async (articles) => {
       articleElement.classList.add("card-all-news");
       articleElement.innerHTML = `
         <h6>${title}</h6>
-        <img class="img-news"src="${image_url}" alt="${title}" />
+        ${image_url ? `<img class="img-news" src="${image_url}" alt="${title}" />` : ''}
         <div class="description-container">
           <p class="description">${description}</p>
         </div>
@@ -90,21 +90,18 @@ const renderAllNews = async (articles) => {
     }
 
     const fragment = document.createDocumentFragment(); // Crear un fragmento
-    const filterImg = articles.filter((article) => article.image_url !== null); // Filtrar los artículos que no tengan imagen
 
-    filterImg.forEach((article) => {
+      articles.forEach((article) => {
       let { image_url, title, description, url, link } = article;
       if (description === null || description === "") {
         description = "Descripción no disponible";
       }
-      if (image_url === null) {
-        image_url = "#";
-      }
+     
       const articleElement = document.createElement("article");
       articleElement.classList.add("card-all-news");
       articleElement.innerHTML = `
         <h1>${title}</h1>
-        <img class="img-news" src="${image_url || "#"}" alt="${title}" />
+        ${image_url ? `<img class="img-news" src="${image_url}" alt="${title}" />` : ''}
         <div class="description-container">
           <p class="description">${description}</p>
         </div>

@@ -17,7 +17,6 @@ buttonNextGames.addEventListener("click", nextGames);
 buttonLiveGames.addEventListener("click", getGameLive);
 buttonLastGames.addEventListener("click", lastGames);
 
-
 async function tablePositions() {
   try {
     infoApiContainer.setAttribute("aria-busy", "true");
@@ -34,12 +33,14 @@ async function tablePositions() {
         },
       };
       const response = await fetch(
-        "https://v3.football.api-sports.io/standings?league=128&season=2023",
+        "https://v3.football.api-sports.io/standings?league=1032&season=2023",
         options
       );
       const data = await response.json();
-      const standings = data.response[0].league.standings[1];
+      const standings = data.response[0].league.standings;
+
       sessionStorage.setItem("apiData", JSON.stringify(standings));
+      console.log(standings);
       renderTable();
     }
   } catch (error) {
@@ -55,6 +56,7 @@ function renderTable() {
   const apiData = JSON.parse(sessionStorage.getItem("apiData"));
   infoApiContainer.innerHTML = `
     <tbody class="tbody-container">
+    <h1>Grupo A</h1>
     <figure>
       <table class="table-container">
         <thead class="thead-container">
@@ -75,29 +77,72 @@ function renderTable() {
       </table>
       </figure>
   </tbody>
+
+  <tbody class="tbody-container-b">
+  <h1>Grupo B</h1>
+  <figure>
+    <table class="table-container-b">
+      <thead class="thead-container">
+        <tr>
+        <th>Posicion</th>
+        <th><span></span></th>
+        <th>Club</th>
+        <th>PJ</th>
+        <th>G</th>
+        <th>E</th>
+        <th>P</th>
+        <th>GF</th>
+        <th>GC</th>
+        <th>DG</th>
+        <th>Pts</th>
+        </tr>
+      </thead>
+    </table>
+    </figure>
+</tbody>
 `;
   const thead = document.querySelector(".thead-container");
   const tableContainer = document.querySelector(".table-container");
-
-  apiData.map((positions) => {
-    thead.innerHTML += `
-            <tr>
-            <td>${positions.rank}</td>
-            <td><img class="logo-tabla"src="${positions.team.logo}"></td>
-            <td>${positions.team.name}</td>
-            <td>${positions.all.played}</td>
-            <td>${positions.all.win}</td>
-            <td>${positions.all.draw}</td>
-            <td>${positions.all.lose}</td>
-            <td>${positions.all.goals.for}</td>
-            <td>${positions.all.goals.against}</td>
-            <td>${positions.goalsDiff}</td>
-            <td>${positions.points}</td>
-            </tr>          `;
-
-    tableContainer.append(thead);
-    infoApiContainer.setAttribute("aria-busy", "false");
+  const tableContainerB = document.querySelector(".table-container-b");
+  // Renderizar para apiData[0]
+  apiData[0].forEach((positions) => {
+    const newRow = document.createElement("tr");
+    newRow.innerHTML = `
+      <td>${positions.rank}</td>
+      <td><img class="logo-tabla"src="${positions.team.logo}"></td>
+      <td>${positions.team.name}</td>
+      <td>${positions.all.played}</td>
+      <td>${positions.all.win}</td>
+      <td>${positions.all.draw}</td>
+      <td>${positions.all.lose}</td>
+      <td>${positions.all.goals.for}</td>
+      <td>${positions.all.goals.against}</td>
+      <td>${positions.goalsDiff}</td>
+      <td>${positions.points}</td>
+    `;
+    tableContainer.appendChild(newRow);
   });
+
+  // Renderizar para apiData[1]
+  apiData[1].forEach((positions) => {
+    const newRowB = document.createElement("tr");
+    newRowB.innerHTML = `
+      <td>${positions.rank}</td>
+      <td><img class="logo-tabla"src="${positions.team.logo}"></td>
+      <td>${positions.team.name}</td>
+      <td>${positions.all.played}</td>
+      <td>${positions.all.win}</td>
+      <td>${positions.all.draw}</td>
+      <td>${positions.all.lose}</td>
+      <td>${positions.all.goals.for}</td>
+      <td>${positions.all.goals.against}</td>
+      <td>${positions.goalsDiff}</td>
+      <td>${positions.points}</td>
+    `;
+    tableContainerB.appendChild(newRowB);
+  });
+
+  infoApiContainer.setAttribute("aria-busy", "false");
 }
 
 async function nextGames() {
@@ -116,7 +161,7 @@ async function nextGames() {
       };
 
       const response = await fetch(
-        "https://v3.football.api-sports.io/fixtures?league=128&season=2023&next=14&timezone=America/Argentina/Buenos_Aires",
+        "https://v3.football.api-sports.io/fixtures?league=1032&season=2023&next=14&timezone=America/Argentina/Buenos_Aires",
         options
       );
       const data = await response.json();
@@ -205,7 +250,7 @@ async function lastGames() {
       };
 
       const response = await fetch(
-        "https://v3.football.api-sports.io/fixtures?league=128&season=2023&last=15&timezone=America/Argentina/Buenos_Aires",
+        "https://v3.football.api-sports.io/fixtures?league=1032&season=2023&last=15&timezone=America/Argentina/Buenos_Aires",
         options
       );
       const data = await response.json();
@@ -314,7 +359,7 @@ async function getGamesToday() {
       };
 
       const response = await fetch(
-        `https://v3.football.api-sports.io/fixtures?league=128&season=2023&date=${formattedDate}&timezone=America/Argentina/Buenos_Aires`,
+        `https://v3.football.api-sports.io/fixtures?league=1032&season=2023&date=${formattedDate}&timezone=America/Argentina/Buenos_Aires`,
         options
       );
       const data = await response.json();
@@ -417,7 +462,7 @@ async function getGameLive() {
       };
 
       const response = await fetch(
-        `https://v3.football.api-sports.io/fixtures?&live=128-129-130-131-132-133-134-517-13-541-11-134&timezone=America/Argentina/Buenos_Aires`,
+        `https://v3.football.api-sports.io/fixtures?&live=1032-129-130-131-132-133-134-517-13-541-11-134-5262-5607-4949-4947-4878-5267-5074-5082-5067-5348-5389-4994-5066-5367-5419-5284-5323-4944-5060-5076-5577&timezone=America/Argentina/Buenos_Aires`,
         options
       );
       const data = await response.json();
@@ -428,9 +473,6 @@ async function getGameLive() {
     }
   } catch (error) {
     console.log(error);
-    infoApiContainer.innerHTML = `
-    <h1>Contenido no disponible intente mas tarde</h1>
-    `;
   }
 }
 
@@ -440,7 +482,7 @@ function renderGameLive() {
 
   if (data.length === 0) {
     liveMatchContainer.innerHTML = `
-    <h1>No hay partidos en vivo en este momento</h1>
+    <h2>No hay partidos en vivo en este momento.</h2>
     `;
     liveMatchContainer.setAttribute("aria-busy", "false");
   } else {
