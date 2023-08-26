@@ -30,6 +30,9 @@ const apiget = async () => {
         JSON.stringify(filteredResult)
       );
 
+      renderNews(filteredResult);
+      renderAllNews(filteredResult);
+
       console.log(result);
     } catch (error) {
       console.error(error);
