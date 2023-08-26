@@ -1,33 +1,39 @@
 const newsContainer = document.querySelector(".news-container");
 const allNewsContainer = document.querySelector(".all-news-container");
 
-const apikey = "pub_26486bb265635d713e2f42feb3fb43376796b";
-const country = "ar";
-const category = "sports";
-const apiUrl = `https://newsdata.io/api/1/news?apikey=${apikey}&country=${country}&category=${category}`;
-
 const apiget = async () => {
   const dataLocalGet = JSON.parse(sessionStorage.getItem("data"));
 
   if (dataLocalGet) {
     // Si los datos ya están en sessionStorage, usarlos directamente
-    const articles = dataLocalGet.results;
+    const articles = dataLocalGet;
     renderNews(articles);
     renderAllNews(articles);
   } else {
-    // Si los datos no están en sessionStorage, hacer la petición a la API
-    fetch(apiUrl)
-      .then((response) => response.json())
-      .then((data) => {
-        const dataLocalSet = JSON.stringify(data);
-        sessionStorage.setItem("data", dataLocalSet);
-        const articles = data.results;
-        renderNews(articles);
-        renderAllNews(articles);
-      })
-      .catch((error) => {
-        console.error("Error al realizar la solicitud:", error);
-      });
+    const url =
+      "https://newsi-api.p.rapidapi.com/api/category?category=sport&language=es&country=ar&sort=top&page=1&limit=20";
+    const options = {
+      method: "GET",
+      headers: {
+        "X-RapidAPI-Key": "096dd435e0msh6bfd88bf3e8fc49p165b76jsnb0774225e9c4",
+        "X-RapidAPI-Host": "newsi-api.p.rapidapi.com",
+      },
+    };
+
+    try {
+      const response = await fetch(url, options);
+      const result = await response.json();
+      const filteredResult = result.filter((article) => article.image !== null && article.image !== "" && article.body !== null && article.body !== "" && article.title !== null && article.title !== "" && article.link !== null && article.link !== "");
+
+      const dataLocalSet = sessionStorage.setItem(
+        "data",
+        JSON.stringify(filteredResult)
+      );
+
+      console.log(result);
+    } catch (error) {
+      console.error(error);
+    }
   }
 };
 
@@ -39,14 +45,15 @@ const renderNews = async (articles) => {
 
     let count = 0;
     const fragment = document.createDocumentFragment(); // Crear un fragmento
-    articles.forEach((article) => {
+    articles.filter((article) => article.image !== null).// Filtrar los artículos que no tengan imagen
+    forEach((article) => {
       if (count >= 2) {
         return;
       }
 
-      let { image_url, title, description, url, link } = article;
-      if (description === null || description === "") {
-        description = "Descripción no disponible";
+      let { image, title, body, link } = article;
+      if (body === null || body === "") {
+        body = "Descripción no disponible";
       }
 
       const articleElement = document.createElement("article");
@@ -54,12 +61,12 @@ const renderNews = async (articles) => {
       articleElement.innerHTML = `
         <h6>${title}</h6>
         ${
-          image_url
-            ? `<img class="img-news" src="${image_url}" alt="${title}" />`
+          image
+            ? `<img class="img-news" src="${image}" alt="${title}" />`
             : ""
         }
         <div class="description-container">
-          <p class="description">${description}</p>
+          <p class="description">${body}</p>
         </div>
         <a href="${link || "#"}" target="_blank">Ver más</a>
       `;
@@ -85,6 +92,7 @@ const renderNews = async (articles) => {
 };
 
 const renderAllNews = async (articles) => {
+  console.log(articles);
   try {
     if (allNewsContainer === null) {
       return;
@@ -92,9 +100,9 @@ const renderAllNews = async (articles) => {
 
     const fragment = document.createDocumentFragment(); // Crear un fragmento
 
-    articles.forEach((article) => {
-      let { image_url, title, description, url, link } = article;
-      if (description === null || description === "") {
+    articles.filter((article) => article.image != null).forEach((article) => {
+      let { image, title, body, link } = article;
+      if (body === null || body === "") {
         description = "Descripción no disponible";
       }
 
@@ -102,13 +110,9 @@ const renderAllNews = async (articles) => {
       articleElement.classList.add("card-all-news");
       articleElement.innerHTML = `
         <h1>${title}</h1>
-        ${
-          image_url
-            ? `<img class="img-news" src="${image_url}" alt="${title}" />`
-            : ""
-        }
+        ${image ? `<img class="img-news" src="${image}" alt="${title}" />` : ""}
         <div class="description-container">
-          <p class="description">${description}</p>
+          <p class="description">${body}</p>
         </div>
         <a href="${link || "#"}" target="_blank">Ver más</a>
       `;
