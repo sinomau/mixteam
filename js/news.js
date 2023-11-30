@@ -1,17 +1,27 @@
 const newsContainer = document.querySelector(".news-container");
 const allNewsContainer = document.querySelector(".all-news-container");
 
+const apikey = "pub_26486bb265635d713e2f42feb3fb43376796b";
+const country = "ar";
+const category = "sports";
+const apiUrl = `https://newsdata.io/api/1/news?apikey=${apikey}&country=${country}&category=${category}`;
+
 const apiget = async () => {
   const dataLocalGet = JSON.parse(sessionStorage.getItem("data"));
 
   if (dataLocalGet) {
     // Si los datos ya están en sessionStorage, usarlos directamente
-    const articles = dataLocalGet;
+    const articles = dataLocalGet.results;
     renderNews(articles);
     renderAllNews(articles);
   } else {
     // Si los datos no están en sessionStorage, hacer la petición a la API
-    fetch(apiUrl)
+    fetch(apiUrl, {
+      method: "GET",
+      headers: {
+        "Permissions-Policy": "interest-cohort=()",
+      },
+    })
       .then((response) => response.json())
       .then((data) => {
         const dataLocalSet = JSON.stringify(data);
@@ -34,15 +44,14 @@ const renderNews = async (articles) => {
 
     let count = 0;
     const fragment = document.createDocumentFragment(); // Crear un fragmento
-    articles.filter((article) => article.image !== null).// Filtrar los artículos que no tengan imagen
-    forEach((article) => {
+    articles.forEach((article) => {
       if (count >= 2) {
         return;
       }
 
-      let { image, title, body, link } = article;
-      if (body === null || body === "") {
-        body = "Descripción no disponible";
+      let { image_url, title, description, url, link } = article;
+      if (description === null || description === "") {
+        description = "Descripción no disponible";
       }
 
       const articleElement = document.createElement("article");
@@ -50,12 +59,12 @@ const renderNews = async (articles) => {
       articleElement.innerHTML = `
         <h6>${title}</h6>
         ${
-          image
-            ? `<img class="img-news" src="${image}" alt="${title}" />`
+          image_url
+            ? `<img class="img-news" src="${image_url}" alt="${title}" />`
             : ""
         }
         <div class="description-container">
-          <p class="description">${body}</p>
+          <p class="description">${description}</p>
         </div>
         <a href="${link || "#"}" target="_blank">Ver más</a>
       `;
@@ -81,7 +90,6 @@ const renderNews = async (articles) => {
 };
 
 const renderAllNews = async (articles) => {
-  console.log(articles);
   try {
     if (allNewsContainer === null) {
       return;
@@ -89,9 +97,9 @@ const renderAllNews = async (articles) => {
 
     const fragment = document.createDocumentFragment(); // Crear un fragmento
 
-    articles.filter((article) => article.image != null).forEach((article) => {
-      let { image, title, body, link } = article;
-      if (body === null || body === "") {
+    articles.forEach((article) => {
+      let { image_url, title, description, url, link } = article;
+      if (description === null || description === "") {
         description = "Descripción no disponible";
       }
 
@@ -99,9 +107,13 @@ const renderAllNews = async (articles) => {
       articleElement.classList.add("card-all-news");
       articleElement.innerHTML = `
         <h1>${title}</h1>
-        ${image ? `<img class="img-news" src="${image}" alt="${title}" />` : ""}
+        ${
+          image_url
+            ? `<img class="img-news" src="${image_url}" alt="${title}" />`
+            : ""
+        }
         <div class="description-container">
-          <p class="description">${body}</p>
+          <p class="description">${description}</p>
         </div>
         <a href="${link || "#"}" target="_blank">Ver más</a>
       `;
