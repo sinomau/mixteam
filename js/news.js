@@ -16,7 +16,12 @@ const apiget = async () => {
     renderAllNews(articles);
   } else {
     // Si los datos no están en sessionStorage, hacer la petición a la API
-    fetch(apiUrl)
+    fetch(apiUrl, {
+      method: "GET",
+      headers: {
+        "Permissions-Policy": "interest-cohort=()",
+      },
+    })
       .then((response) => response.json())
       .then((data) => {
         const dataLocalSet = JSON.stringify(data);

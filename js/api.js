@@ -466,7 +466,7 @@ async function getGameLive() {
       const data = await response.json();
       const resp = data.response;
       sessionStorage.setItem("gameLive", JSON.stringify(resp));
-
+      console.log(data)
       renderGameLive();
     }
   } catch (error) {
