@@ -1,30 +1,29 @@
 const newsContainer = document.querySelector(".news-container");
 const allNewsContainer = document.querySelector(".all-news-container");
 
-const apikey = "pub_26486bb265635d713e2f42feb3fb43376796b";
-const country = "ar";
-const category = "sports";
-const apiUrl = `https://newsdata.io/api/1/news?apikey=${apikey}&country=${country}&category=${category}`;
-
+const url = 'https://news67.p.rapidapi.com/v2/topic-search?languages=es&search=sports';
+const options = {
+  method: 'GET',
+  headers: {
+    'X-RapidAPI-Key': '096dd435e0msh6bfd88bf3e8fc49p165b76jsnb0774225e9c4',
+    'X-RapidAPI-Host': 'news67.p.rapidapi.com'
+  }
+};
 const apiget = async () => {
   const dataLocalGet = JSON.parse(sessionStorage.getItem("data"));
 
   if (dataLocalGet) {
     // Si los datos ya están en sessionStorage, usarlos directamente
-    const articles = dataLocalGet.results;
+    const articles = dataLocalGet;
+    console.log(articles)
     renderNews(articles);
     renderAllNews(articles);
   } else {
     // Si los datos no están en sessionStorage, hacer la petición a la API
-    fetch(apiUrl, {
-      method: "GET",
-      headers: {
-        "Permissions-Policy": "interest-cohort=()",
-      },
-    })
+    fetch(url, options)
       .then((response) => response.json())
       .then((data) => {
-        const dataLocalSet = JSON.stringify(data);
+        const dataLocalSet = JSON.stringify(data.news);
         sessionStorage.setItem("data", dataLocalSet);
         const articles = data.results;
         renderNews(articles);
@@ -49,24 +48,24 @@ const renderNews = async (articles) => {
         return;
       }
 
-      let { image_url, title, description, url, link } = article;
-      if (description === null || description === "") {
-        description = "Descripción no disponible";
+      let { Image, Title, Description, Url } = article;
+      if (Description === null || Description === "") {
+        Description = "Descripción no disponible";
       }
 
       const articleElement = document.createElement("article");
       articleElement.classList.add("card-all-news");
       articleElement.innerHTML = `
-        <h6>${title}</h6>
+        <h6>${Title}</h6>
         ${
-          image_url
-            ? `<img class="img-news" src="${image_url}" alt="${title}" />`
+          Image
+            ? `<img class="img-news" src="${Image}" alt="${Title}" />`
             : ""
         }
         <div class="description-container">
-          <p class="description">${description}</p>
+          <p class="description">${Description}</p>
         </div>
-        <a href="${link || "#"}" target="_blank">Ver más</a>
+        <a href="${Url || "#"}" target="_blank">Ver más</a>
       `;
 
       fragment.appendChild(articleElement); // Agregar el artículo al fragmento
@@ -98,24 +97,24 @@ const renderAllNews = async (articles) => {
     const fragment = document.createDocumentFragment(); // Crear un fragmento
 
     articles.forEach((article) => {
-      let { image_url, title, description, url, link } = article;
-      if (description === null || description === "") {
-        description = "Descripción no disponible";
+      let { Image, Title, Description, Url  } = article;
+      if (Description === null || Description === "") {
+        Description = "Descripción no disponible";
       }
 
       const articleElement = document.createElement("article");
       articleElement.classList.add("card-all-news");
       articleElement.innerHTML = `
-        <h1>${title}</h1>
+        <h1>${Title}</h1>
         ${
-          image_url
-            ? `<img class="img-news" src="${image_url}" alt="${title}" />`
+          Image
+            ? `<img class="img-news" src="${Image}" alt="${Title}" />`
             : ""
         }
         <div class="description-container">
-          <p class="description">${description}</p>
+          <p class="description">${Description}</p>
         </div>
-        <a href="${link || "#"}" target="_blank">Ver más</a>
+        <a href="${Url || "#"}" target="_blank">Ver más</a>
       `;
 
       fragment.appendChild(articleElement); // Agregar el artículo al fragmento
