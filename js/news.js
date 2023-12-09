@@ -7,6 +7,7 @@ const options = {
   headers: {
     'X-RapidAPI-Key': '096dd435e0msh6bfd88bf3e8fc49p165b76jsnb0774225e9c4',
     'X-RapidAPI-Host': 'news67.p.rapidapi.com'
+    
   }
 };
 const apiget = async () => {
@@ -42,6 +43,7 @@ const renderNews = async (articles) => {
     }
 
     let count = 0;
+
     const fragment = document.createDocumentFragment(); // Crear un fragmento
     articles.forEach((article) => {
       if (count >= 2) {
