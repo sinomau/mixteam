@@ -48,7 +48,7 @@ const renderData = async (response) => {
         
         <img class="img-card" src="${iconUrl}">
         <p>${temp}°</p>
-        <p>  -  ${city}</p>
+        <p>${city}</p>
         
         `;
     document
