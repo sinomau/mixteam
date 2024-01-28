@@ -1,14 +1,14 @@
 const newsContainer = document.querySelector(".news-container");
 const allNewsContainer = document.querySelector(".all-news-container");
 
-const url = 'https://news67.p.rapidapi.com/v2/topic-search?languages=es&search=sports';
+const url =
+  "https://news67.p.rapidapi.com/v2/topic-search?languages=es&search=sports";
 const options = {
-  method: 'GET',
+  method: "GET",
   headers: {
-    'X-RapidAPI-Key': '096dd435e0msh6bfd88bf3e8fc49p165b76jsnb0774225e9c4',
-    'X-RapidAPI-Host': 'news67.p.rapidapi.com'
-    
-  }
+    "X-RapidAPI-Key": "096dd435e0msh6bfd88bf3e8fc49p165b76jsnb0774225e9c4",
+    "X-RapidAPI-Host": "news67.p.rapidapi.com",
+  },
 };
 const apiget = async () => {
   const dataLocalGet = JSON.parse(sessionStorage.getItem("data"));
@@ -16,23 +16,28 @@ const apiget = async () => {
   if (dataLocalGet) {
     // Si los datos ya están en sessionStorage, usarlos directamente
     const articles = dataLocalGet;
-    console.log(articles)
-    renderNews(articles);
-    renderAllNews(articles);
+    console.log(articles);
+    await renderNews(articles);
+    await renderAllNews(articles);
   } else {
-    // Si los datos no están en sessionStorage, hacer la petición a la API
-    fetch(url, options)
-      .then((response) => response.json())
-      .then((data) => {
-        const dataLocalSet = JSON.stringify(data.news);
-        sessionStorage.setItem("data", dataLocalSet);
-        const articles = data.results;
+    try {
+      // Si los datos no están en sessionStorage, hacer la petición a la API
+      const response = await fetch(url, options);
+      const data = await response.json();
+
+      if (data.news) {
+        const articles = data.news;
+        sessionStorage.setItem("data", JSON.stringify(articles));
         renderNews(articles);
         renderAllNews(articles);
-      })
-      .catch((error) => {
-        console.error("Error al realizar la solicitud:", error);
-      });
+      } else {
+        console.error(
+          "La respuesta de la API no contiene la propiedad 'news'."
+        );
+      }
+    } catch (error) {
+      console.error("Error al realizar la solicitud:", error);
+    }
   }
 };
 
@@ -59,11 +64,7 @@ const renderNews = async (articles) => {
       articleElement.classList.add("card-all-news");
       articleElement.innerHTML = `
         <h6>${Title}</h6>
-        ${
-          Image
-            ? `<img class="img-news" src="${Image}" alt="${Title}" />`
-            : ""
-        }
+        ${Image ? `<img class="img-news" src="${Image}" alt="${Title}" />` : ""}
         <div class="description-container">
           <p class="description">${Description}</p>
         </div>
@@ -99,7 +100,7 @@ const renderAllNews = async (articles) => {
     const fragment = document.createDocumentFragment(); // Crear un fragmento
 
     articles.forEach((article) => {
-      let { Image, Title, Description, Url  } = article;
+      let { Image, Title, Description, Url } = article;
       if (Description === null || Description === "") {
         Description = "Descripción no disponible";
       }
@@ -108,11 +109,7 @@ const renderAllNews = async (articles) => {
       articleElement.classList.add("card-all-news");
       articleElement.innerHTML = `
         <h1>${Title}</h1>
-        ${
-          Image
-            ? `<img class="img-news" src="${Image}" alt="${Title}" />`
-            : ""
-        }
+        ${Image ? `<img class="img-news" src="${Image}" alt="${Title}" />` : ""}
         <div class="description-container">
           <p class="description">${Description}</p>
         </div>
