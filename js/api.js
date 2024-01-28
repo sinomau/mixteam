@@ -8,6 +8,7 @@ const buttonNextGames = document.querySelector(".next-api");
 const buttonNowGames = document.querySelector(".now-api");
 const buttonLiveGames = document.querySelector(".live-api");
 const liveMatchContainer = document.querySelector(".live-matchs");
+const topContainer = document.querySelector(".top-container");
 
 /* Event handlers */
 
@@ -33,7 +34,7 @@ async function tablePositions() {
         },
       };
       const response = await fetch(
-        "https://v3.football.api-sports.io/standings?league=1032&season=2023",
+        "https://v3.football.api-sports.io/standings?league=1032&season=2024",
         options
       );
       const data = await response.json();
@@ -148,7 +149,7 @@ function renderTable() {
 async function nextGames() {
   try {
     infoApiContainer.setAttribute("aria-busy", "true");
-    const round = sessionStorage.getItem("round");
+    const round = sessionStorage.getItem("Rounds");
     if (round != null) {
       renderNextGames();
     } else {
@@ -161,7 +162,7 @@ async function nextGames() {
       };
 
       const response = await fetch(
-        "https://v3.football.api-sports.io/fixtures?league=1032&season=2023&next=14&timezone=America/Argentina/Buenos_Aires",
+        "https://v3.football.api-sports.io/fixtures?league=1032&season=2024&next=14&timezone=America/Argentina/Buenos_Aires",
         options
       );
       const data = await response.json();
@@ -197,7 +198,6 @@ function renderNextGames() {
     if (partidos.fixture.referee === null) {
       partidos.fixture.referee = "Sin Informacion";
     }
-    console.log(data);
 
     infoApiContainer.innerHTML += ` 
       <article class="article-container">
@@ -250,7 +250,7 @@ async function lastGames() {
       };
 
       const response = await fetch(
-        "https://v3.football.api-sports.io/fixtures?league=1032&season=2023&last=15&timezone=America/Argentina/Buenos_Aires",
+        "https://v3.football.api-sports.io/fixtures?league=1032&season=2024&last=15&timezone=America/Argentina/Buenos_Aires",
         options
       );
       const data = await response.json();
@@ -359,7 +359,7 @@ async function getGamesToday() {
       };
 
       const response = await fetch(
-        `https://v3.football.api-sports.io/fixtures?league=1032&season=2023&date=${formattedDate}&timezone=America/Argentina/Buenos_Aires`,
+        `https://v3.football.api-sports.io/fixtures?league=1032&season=2024&date=${formattedDate}&timezone=America/Argentina/Buenos_Aires`,
         options
       );
       const data = await response.json();
@@ -466,7 +466,7 @@ async function getGameLive() {
       const data = await response.json();
       const resp = data.response;
       sessionStorage.setItem("gameLive", JSON.stringify(resp));
-      console.log(data)
+      console.log(data);
       renderGameLive();
     }
   } catch (error) {
