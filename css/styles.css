@@ -9,7 +9,10 @@ html {
 }
 
 body {
+  display: flex;
+  flex-direction: column;
   min-height: 100vh;
+  margin: 0;
 }
 
 [data-theme="dark"] {
@@ -158,6 +161,7 @@ header {
 }
 
 footer {
+  
   background-color: #253344;
   color: gray;
   display: flex;
@@ -166,8 +170,9 @@ footer {
   align-items: center;
   align-content: center;
   padding: 10px;
-  height: 50px;
+  width: 100%;  
 }
+
 
 .table-live th {
   padding: 0 !important;
@@ -247,7 +252,23 @@ h5 {
 .logo-afa {
   display: flex;
   padding: 10px;
-  width: 50px;
+  width: 70px;
+  max-width: 100%
+}
+
+.logo-LIB {
+  display: flex;
+  padding: 10px;
+  width: 200px;
+  max-width: 100%
+  
+}
+
+.logo-sudamericana {
+  display: flex;
+  padding: 10px;
+  width: 100px;
+  max-width: 100%
 }
 
 .info-container {
