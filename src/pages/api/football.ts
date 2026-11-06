@@ -1,26 +1,27 @@
-// Server-side proxy for API-Football. Keeps the API key out of the browser.
-// Legacy reference: legacy/js/api.js (league ids preserved)
+// Server-side proxy for football data, fed by ESPN's public API.
+// Zero API keys, no plans, no quotas — current-season data included.
+//
+// Why ESPN and not API-Football: the free API-Football plan only serves
+// seasons 2022-2024 and blocks the `next`/`last` parameters, so a current
+// season (e.g. Liga Profesional 2026) is impossible without paying.
+// ESPN's public endpoints cover all three competitions of this site.
 //
 // GET /api/football?competition=lpf|libertadores|sudamericana&view=standings|last|next|live
 
 export const prerender = false;
 
 const COMPETITIONS = {
-  lpf: { league: 1032, name: "Liga Profesional Argentina" },
-  libertadores: { league: 13, name: "Copa Libertadores" },
-  sudamericana: { league: 11, name: "Copa Sudamericana" },
+  lpf: "arg.1",
+  libertadores: "conmebol.libertadores",
+  sudamericana: "conmebol.sudamericana",
 } as const;
 
-const API_URL = "https://v3.football.api-sports.io";
-
-/** Season follows the current year; no more hardcoded 2024. */
-function currentSeason(): string {
-  const now = new Date();
-  // handle UTC/ARG utc-offset by using local date
-  return String(now.getFullYear());
-}
+const ESPN_SITE = "https://site.api.espn.com/apis/site/v2/sports/soccer";
+const ESPN_V2 = "https://site.api.espn.com/apis/v2/sports/soccer";
 
 const CACHE_TTL_MS = 5 * 60 * 1000;
+const PAST_DAYS = 7;
+const FUTURE_DAYS = 14;
 const cache = new Map<string, { data: unknown; at: number }>();
 
 function json(data: unknown, status = 200) {
@@ -30,24 +31,12 @@ function json(data: unknown, status = 200) {
   });
 }
 
-function apiKey(): string | null {
-  return import.meta.env.API_FOOTBALL_KEY ?? null;
-}
-
-async function callApi(path: string): Promise<any> {
-  const key = apiKey();
-  if (!key) throw new Error("API_FOOTBALL_KEY no configurada");
-
-  const res = await fetch(`${API_URL}/${path}`, {
-    headers: { "x-apisports-key": key },
+async function espn(url: string): Promise<any> {
+  const res = await fetch(url, {
+    headers: { "user-agent": "MiXteam/2.0 (+portfolio project)" },
   });
-  if (!res.ok) throw new Error(`API-Football respondió ${res.status}`);
-
-  const payload = await res.json();
-  if (payload.errors && Object.keys(payload.errors).length > 0) {
-    throw new Error(JSON.stringify(payload.errors));
-  }
-  return payload;
+  if (!res.ok) throw new Error(`ESPN respondió ${res.status}`);
+  return res.json();
 }
 
 function withCache(key: string, producer: () => Promise<unknown>): Promise<unknown> {
@@ -61,89 +50,139 @@ function withCache(key: string, producer: () => Promise<unknown>): Promise<unkno
   });
 }
 
-function mapFixture(f: any) {
-  const referee = f.fixture?.referee ?? "Sin información";
+/** YYYYMMDD in local (server) time, offset by `delta` days. */
+function yyyymmdd(deltaDays: number): string {
+  const d = new Date();
+  d.setDate(d.getDate() + deltaDays);
+  return `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, "0")}${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function statValue(stats: Array<{ name: string; value: number }>, name: string): number {
+  return stats.find((s) => s.name === name)?.value ?? 0;
+}
+
+interface Competitor {
+  team: { displayName?: string; logo?: string };
+  score?: string;
+  homeAway?: string;
+}
+
+function mapEvent(event: any, leagueName: string) {
+  const comp = event.competitions?.[0] ?? {};
+  const home = (comp.competitors ?? []).find((c: Competitor) => c.homeAway === "home");
+  const away = (comp.competitors ?? []).find((c: Competitor) => c.homeAway === "away");
+  const status = event.status?.type ?? {};
+
   return {
-    round: f.league?.round ?? "",
-    status: f.fixture?.status?.long ?? "",
-    dateUtc: f.fixture?.date ?? "",
-    home: f.teams?.home?.name ?? "",
-    homeLogo: f.teams?.home?.logo ?? "",
-    away: f.teams?.away?.name ?? "",
-    awayLogo: f.teams?.away?.logo ?? "",
-    homeGoals: f.goals?.home ?? 0,
-    awayGoals: f.goals?.away ?? 0,
-    venue: `${f.fixture?.venue?.name ?? ""} — ${f.fixture?.venue?.city ?? ""}`.replace(/^ — /, ""),
+    round: comp.notes?.[0]?.headline ?? leagueName,
+    league: leagueName,
+    elapsed: event.status?.displayClock ? event.status.displayClock.replace(/^PT/, "").toLowerCase() : `${event.status?.period ?? ""}`,
+    status: {
+      pre: "Por jugar",
+      in: "En vivo",
+      post: "Finalizado",
+    }[status.state] ?? status.detail ?? "",
+    state: status.state ?? "",
+    dateUtc: event.date ?? "",
+    home: home?.team?.displayName ?? "",
+    homeLogo: home?.team?.logo ?? "",
+    away: away?.team?.displayName ?? "",
+    awayLogo: away?.team?.logo ?? "",
+    homeGoals: home?.score ?? "",
+    awayGoals: away?.score ?? "",
+    venue: comp.venue?.fullName ?? "",
   };
 }
 
-export const GET: APIRoute = async ({ params, url }) => {
+async function scoreboard(slug: string, date: string): Promise<Array<Record<string, unknown>>> {
+  const data = await espn(`${ESPN_SITE}/${slug}/scoreboard?dates=${date}`);
+  const leagueName = data.leagues?.[0]?.name ?? "";
+  return (data.events ?? []).map((event: any) => mapEvent(event, leagueName));
+}
+
+/** Sort a standings table by football convention: points, goal diff, goals for. */
+function rankRows(rows: Array<Record<string, number | string>>) {
+  return rows
+    .sort(
+      (a, b) =>
+        Number(b.points) - Number(a.points) ||
+        Number(b.diff) - Number(a.diff) ||
+        Number(b.goalsFor) - Number(a.goalsFor)
+    )
+    .map((row, i) => ({ ...row, rank: i + 1 }));
+}
+
+export const GET: APIRoute = async ({ url }) => {
   const competition = url.searchParams.get("competition") ?? "";
   const view = url.searchParams.get("view") ?? "";
 
-  const meta = COMPETITIONS[competition as keyof typeof COMPETITIONS];
-  if (!meta) {
-    return json({ error: "competencia inválida" }, 400);
-  }
+  const slug = COMPETITIONS[competition as keyof typeof COMPETITIONS];
+  if (!slug) return json({ error: "competencia inválida" }, 400);
   if (!["standings", "last", "next", "live"].includes(view)) {
     return json({ error: "vista inválida" }, 400);
   }
 
   try {
     if (view === "standings") {
-      const data = await withCache(`${meta.league}:standings`, async () => {
-        const payload = await callApi(
-          `standings?league=${meta.league}&season=${currentSeason()}`
-        );
-        const groups = payload.response?.[0]?.league?.standings ?? [];
-        const groupNames = ["Grupo A", "Grupo B", "Grupo C", "Grupo D", "Fase Final"];
-        return {
-          groups: groups.map((rows: any[], i: number) => ({
-            groupName: groupNames[i] ?? `Tabla ${i + 1}`,
-            rows: rows.map((r) => ({
-              rank: r.rank,
-              team: r.team?.name ?? "",
-              logo: r.team?.logo ?? "",
-              played: r.all?.played ?? 0,
-              win: r.all?.win ?? 0,
-              draw: r.all?.draw ?? 0,
-              lose: r.all?.lose ?? 0,
-              goalsFor: r.all?.goals?.for ?? 0,
-              goalsAgainst: r.all?.goals?.against ?? 0,
-              diff: r.goalsDiff ?? 0,
-              points: r.points ?? 0,
-            })),
-          })),
-        };
+      const data = await withCache(`${slug}:standings`, async () => {
+        const data = await espn(`${ESPN_V2}/${slug}/standings`);
+        const groups = (data.children ?? [])
+          .map((child: any) => ({
+            groupName: (child.name ?? "Tabla")
+              .replace(/^Group\s+([A-Z0-9]+)$/i, "Grupo $1")
+              .replace(/^Overall$/i, "General"),
+            rows: rankRows(
+              (child.standings?.entries ?? []).map((entry: any) => {
+                const stats = entry.stats ?? [];
+                const gf = statValue(stats, "pointsFor");
+                const ga = statValue(stats, "pointsAgainst");
+                return {
+                  team: entry.team?.displayName ?? "",
+                  logo: entry.team?.logo ?? "",
+                  played: statValue(stats, "gamesPlayed"),
+                  win: statValue(stats, "wins"),
+                  draw: statValue(stats, "ties"),
+                  lose: statValue(stats, "losses"),
+                  goalsFor: gf,
+                  goalsAgainst: ga,
+                  diff: gf - ga,
+                  points: statValue(stats, "points"),
+                };
+              })
+            ),
+          }))
+          .filter((g: { rows: unknown[] }) => g.rows.length > 0);
+        return { groups };
       });
       return json(data);
     }
 
     if (view === "last" || view === "next") {
-      const suffix = view === "last" ? "last=15" : "next=14";
-      const data = await withCache(`${meta.league}:${view}`, async () => {
-        const payload = await callApi(
-          `fixtures?league=${meta.league}&season=${currentSeason()}&${suffix}&timezone=America/Argentina/Buenos_Aires`
+      const data = await withCache(`${slug}:${view}`, async () => {
+        const wanted = view === "last" ? "post" : "pre";
+        const offsets =
+          view === "last"
+            ? Array.from({ length: PAST_DAYS }, (_, i) => -(i + 1))
+            : Array.from({ length: FUTURE_DAYS + 1 }, (_, i) => i);
+
+        const days = await Promise.all(
+          offsets.map((offset) => scoreboard(slug, yyyymmdd(offset)))
         );
-        const fixtures = (payload.response ?? []).filter(
-          (f: any) => view !== "last" || f.fixture?.status?.long === "Match Finished"
-        );
-        return { fixtures: fixtures.map(mapFixture) };
+        const fixtures = days
+          .flat()
+          .filter((f: any) => f.state === wanted)
+          .sort((a: any, b: any) => new Date(a.dateUtc) - new Date(b.dateUtc));
+        return { fixtures };
       });
       return json(data);
     }
 
-    // live
-    const data = await withCache(`${meta.league}:live`, async () => {
-      const payload = await callApi(
-        `fixtures?live=${meta.league}&timezone=America/Argentina/Buenos_Aires`
-      );
-      const fixtures = (payload.response ?? []).map((f: any) => ({
-        ...mapFixture(f),
-        league: f.league?.name ?? "",
-        elapsed: f.fixture?.status?.elapsed ?? "",
-      }));
-      return { fixtures };
+    // live — default scoreboard contains the matches of the day, with state included.
+    const data = await withCache(`${slug}:live`, async () => {
+      const fixtures = await scoreboard(slug, yyyymmdd(0));
+      return {
+        fixtures: fixtures.filter((f: any) => f.state === "in"),
+      };
     });
     return json(data);
   } catch (err: any) {

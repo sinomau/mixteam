@@ -164,7 +164,7 @@ const { heading, logo, logoAlt, endpoint } = Astro.props;
               <span class="fb__club">${esc(f.away)} <img src="${esc(f.awayLogo)}" alt="" width="24" height="24" loading="lazy"></span>
             </div>
             <footer class="fb__match-foot">
-              <span>${esc(f.dateUtc)}</span>
+              <span>${fmtDate(String(f.dateUtc))}</span>
               <span>${esc(f.venue)}</span>
             </footer>
           </article>
@@ -173,8 +173,17 @@ const { heading, logo, logoAlt, endpoint } = Astro.props;
       .join("");
   }
 
+  function fmtDate(iso: string): string {
+    return new Date(iso).toLocaleString("es-AR", {
+      day: "2-digit",
+      month: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  }
+
   function goals(home: unknown, away: unknown, status: string): string {
-    if (status === "Not Started") return "vs";
+    if (status === "Por jugar") return "vs";
     return `${esc(home)} – ${esc(away)}`;
   }
 

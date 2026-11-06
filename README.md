@@ -18,7 +18,7 @@ Liga Profesional, Copa Libertadores y Copa Sudamericana, con noticias en vivo.
 - **Team mixer** — add players, shuffle with Fisher–Yates, split into two
   balanced teams, share on WhatsApp. State persists in `localStorage`.
 - **Competitions** — standings, results, upcoming fixtures and live matches via
-  `src/pages/api/football.ts` (proxies API-Football, 5-minute cache).
+  `src/pages/api/football.ts` (proxies ESPN's public API, 5-minute cache).
 - **News** — Google News RSS (Spanish, topic: fútbol argentino) via
   `src/pages/api/news.ts`. No API key needed, 10-minute cache.
 - **Weather chip** — Buenos Aires forecast in the header via
@@ -34,13 +34,15 @@ npm run build     # static build + serverless entry
 
 ## Environment variables
 
-Create a `.env` file (see nothing below is required to boot; feature UIs
-degrade gracefully without data):
+Create a `.env` file. Nothing is required to boot; feature UIs degrade
+gracefully without data:
 
-| Variable          | Used by       | Where to get it                              |
-| ----------------- | ------------- | -------------------------------------------- |
-| `API_FOOTBALL_KEY`| `/api/football` | Free key at <https://www.api-football.com> |
-| `OPENWEATHER_KEY` | `/api/weather`     | Free key at <https://openweathermap.org>   |
+| Variable          | Used by          | Where to get it                            |
+| ----------------- | ---------------- | ------------------------------------------ |
+| `OPENWEATHER_KEY` | `/api/weather`   | Free key at <https://openweathermap.org>   |
+
+Football and news data use public, keyless sources (ESPN public API and
+Google News RSS), so they need no configuration.
 
 Keys are read **server-side only**. Never put them in client code.
 
