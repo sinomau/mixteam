@@ -197,7 +197,7 @@ const { heading, logo, logoAlt, endpoint } = Astro.props;
         <article class="fb__match fb__match--live">
           <header class="fb__match-head">
             <span>${esc(m.league)}</span>
-            <span class="fb__status fb__status--live">${esc(m.elapsed)}' · ${statusLabel(String(m.status))}</span>
+            <span class="fb__status fb__status--live">${esc(m.elapsed)} · ${statusLabel(String(m.status))}</span>
           </header>
           <div class="fb__match-body">
             <span class="fb__club"><img src="${esc(m.homeLogo)}" alt="" width="24" height="24">${esc(m.home)}</span>

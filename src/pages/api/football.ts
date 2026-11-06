@@ -11,9 +11,9 @@
 export const prerender = false;
 
 const COMPETITIONS = {
-  lpf: "arg.1",
-  libertadores: "conmebol.libertadores",
-  sudamericana: "conmebol.sudamericana",
+  lpf: { slug: "arg.1", name: "Liga Profesional de Fútbol" },
+  libertadores: { slug: "conmebol.libertadores", name: "Copa Libertadores" },
+  sudamericana: { slug: "conmebol.sudamericana", name: "Copa Sudamericana" },
 } as const;
 
 const ESPN_SITE = "https://site.api.espn.com/apis/site/v2/sports/soccer";
@@ -76,7 +76,11 @@ function mapEvent(event: any, leagueName: string) {
   return {
     round: comp.notes?.[0]?.headline ?? leagueName,
     league: leagueName,
-    elapsed: event.status?.displayClock ? event.status.displayClock.replace(/^PT/, "").toLowerCase() : `${event.status?.period ?? ""}`,
+    // displayClock arrives as '78''-style (minutes already formatted).
+    elapsed: (() => {
+      const m = /(\d+)/.exec(event.status?.displayClock ?? "");
+      return m ? `${m[1]}'` : "";
+    })(),
     status: {
       pre: "Por jugar",
       in: "En vivo",
@@ -94,10 +98,14 @@ function mapEvent(event: any, leagueName: string) {
   };
 }
 
-async function scoreboard(slug: string, date: string): Promise<Array<Record<string, unknown>>> {
+async function scoreboard(
+  slug: string,
+  date: string,
+  leagueName: string
+): Promise<Array<Record<string, unknown>>> {
   const data = await espn(`${ESPN_SITE}/${slug}/scoreboard?dates=${date}`);
-  const leagueName = data.leagues?.[0]?.name ?? "";
-  return (data.events ?? []).map((event: any) => mapEvent(event, leagueName));
+  const name = leagueName || (data.leagues?.[0]?.name ?? "");
+  return (data.events ?? []).map((event: any) => mapEvent(event, name));
 }
 
 /** Sort a standings table by football convention: points, goal diff, goals for. */
@@ -116,8 +124,9 @@ export const GET: APIRoute = async ({ url }) => {
   const competition = url.searchParams.get("competition") ?? "";
   const view = url.searchParams.get("view") ?? "";
 
-  const slug = COMPETITIONS[competition as keyof typeof COMPETITIONS];
-  if (!slug) return json({ error: "competencia inválida" }, 400);
+  const meta = COMPETITIONS[competition as keyof typeof COMPETITIONS];
+  if (!meta) return json({ error: "competencia inválida" }, 400);
+  const { slug, name: competitionName } = meta;
   if (!["standings", "last", "next", "live"].includes(view)) {
     return json({ error: "vista inválida" }, 400);
   }
@@ -166,7 +175,7 @@ export const GET: APIRoute = async ({ url }) => {
             : Array.from({ length: FUTURE_DAYS + 1 }, (_, i) => i);
 
         const days = await Promise.all(
-          offsets.map((offset) => scoreboard(slug, yyyymmdd(offset)))
+          offsets.map((offset) => scoreboard(slug, yyyymmdd(offset), competitionName))
         );
         const fixtures = days
           .flat()
@@ -179,7 +188,7 @@ export const GET: APIRoute = async ({ url }) => {
 
     // live — default scoreboard contains the matches of the day, with state included.
     const data = await withCache(`${slug}:live`, async () => {
-      const fixtures = await scoreboard(slug, yyyymmdd(0));
+      const fixtures = await scoreboard(slug, yyyymmdd(0), competitionName);
       return {
         fixtures: fixtures.filter((f: any) => f.state === "in"),
       };
