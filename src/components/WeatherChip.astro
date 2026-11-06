@@ -1,0 +1,61 @@
+---
+// Weather chip for the header. Data comes from the /api/weather proxy.
+// Legacy reference: legacy/js/weather.js
+---
+
+<span class="weather-chip" id="weather-chip" role="status"></span>
+
+<script>
+  const chip = document.querySelector<HTMLSpanElement>("#weather-chip")!;
+
+  function esc(value: unknown): string {
+    return String(value ?? "").replace(/[&<>"']/g, (ch) =>
+      ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;",
+      })[ch]!
+    );
+  }
+
+  async function load() {
+    try {
+      const res = await fetch("/api/weather");
+      if (!res.ok) return;
+      const data = await res.json();
+
+      chip.innerHTML = `
+        ${
+          data.icon
+            ? `<img src="https://openweathermap.org/img/wn/${esc(data.icon)}.png" alt="" width="36" height="36">`
+            : ""
+        }
+        <span aria-label="Clima actual"><strong>${esc(data.temp)}°</strong> · ${esc(data.city)}</span>
+      `;
+    } catch {
+      // Dejar el chip en blanco: el clima es secundario, no vale un mensaje.
+    }
+  }
+
+  load();
+</script>
+
+<style>
+  .weather-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    background: rgba(58, 80, 107, 0.85);
+    color: var(--color-text);
+    border-radius: 999px;
+    padding: var(--space-1) var(--space-3);
+    font-size: var(--text-sm);
+    min-height: 2rem;
+  }
+
+  .weather-chip img {
+    display: block;
+  }
+</style>

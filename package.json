@@ -1,0 +1,21 @@
+{
+  "name": "mixteam",
+  "type": "module",
+  "version": "2.0.0",
+  "description": "Arma y mezcla equipos para tu fulbito. Resultados del fútbol argentino en vivo.",
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "astro": "astro"
+  },
+  "dependencies": {
+    "astro": "^7.4.0",
+    "@astrojs/vercel": "^11.0.0"
+  },
+  "allowScripts": {
+    "esbuild@0.27.7": true,
+    "esbuild@0.25.12": true,
+    "sharp@0.34.5": true
+  }
+}

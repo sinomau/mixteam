@@ -1,0 +1,132 @@
+---
+// Sports news grid. Headlines come from the /api/news server proxy —
+// no API keys in the browser. Legacy reference: legacy/js/news.js
+---
+
+<section class="news" aria-labelledby="news-heading">
+  <h2 id="news-heading">Noticias deportivas</h2>
+  <div class="news__grid" aria-live="polite"></div>
+</section>
+
+<script>
+  const section = document.querySelector<HTMLElement>(".news")!;
+  const grid = section.querySelector<HTMLDivElement>(".news__grid")!;
+
+  const spinner = `<div class="news__loading" role="status">Cargando noticias…</div>`;
+  const errorMessage = `<div class="news__error">Las noticias no están disponibles en este momento.</div>`;
+
+  grid.innerHTML = spinner;
+
+  function esc(value: unknown): string {
+    return String(value ?? "").replace(/[&<>"']/g, (ch) =>
+      ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;",
+      })[ch]!
+    );
+  }
+
+  async function load() {
+    try {
+      const res = await fetch("/api/news");
+      if (!res.ok) throw new Error(`API ${res.status}`);
+      const { items = [] } = await res.json();
+
+      if (items.length === 0) {
+        grid.innerHTML = `<div class="news__error">No hay noticias para mostrar ahora mismo.</div>`;
+        return;
+      }
+
+      grid.innerHTML = items
+        .map(
+          (item: Record<string, unknown>) => `
+          <article class="news__card">
+            ${
+              item.image
+                ? `<img class="news__img" src="${esc(item.image)}" alt="" loading="lazy">`
+                : ""
+            }
+            <h3 class="news__title">${esc(item.title)}</h3>
+            <p class="news__desc">${esc(item.description)}</p>
+            <a class="news__link" href="${esc(item.url)}" target="_blank" rel="noopener noreferrer">
+              Leer más <span aria-hidden="true">→</span>
+            </a>
+          </article>
+        `
+        )
+        .join("");
+    } catch {
+      grid.innerHTML = errorMessage;
+    }
+  }
+
+  load();
+</script>
+
+<style>
+  .news__grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(18rem, 1fr));
+    gap: var(--space-4);
+  }
+
+  .news__loading,
+  .news__error {
+    grid-column: 1 / -1;
+    text-align: center;
+    color: var(--color-text-muted);
+    padding: var(--space-5);
+    border: 1px dashed var(--color-border);
+    border-radius: var(--radius-md);
+  }
+
+  .news__card {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    box-shadow: 0 8px 24px rgb(6 12 28 / 35%);
+  }
+
+  .news__img {
+    width: 100%;
+    height: 180px;
+    object-fit: cover;
+  }
+
+  .news__card h3,
+  .news__card p {
+    padding-inline: var(--space-3);
+  }
+
+  .news__title {
+    font-family: var(--font-display);
+    font-size: var(--text-md);
+    line-height: 1.35;
+  }
+
+  .news__desc {
+    color: var(--color-text-muted);
+    font-size: var(--text-sm);
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .news__card > .news__desc {
+    margin-bottom: auto;
+  }
+
+  .news__link {
+    padding: var(--space-2) var(--space-3) var(--space-3);
+    font-weight: 700;
+    font-size: var(--text-sm);
+  }
+</style>

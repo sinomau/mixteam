@@ -1,0 +1,327 @@
+---
+// Team mixer island: the star feature of the original hand-built site,
+// rewritten with one-directional state and the original bugs fixed.
+// Legacy reference: legacy/js/index.js
+---
+
+<section class="mixer" aria-labelledby="mixer-title">
+  <h1 id="mixer-title">Crea tus equipos</h1>
+  <p class="mixer__lead">
+    Armá los equipos para ese fulbito. Agregá cuatro o más jugadores y
+    mezclalos al azar.
+  </p>
+
+  <form class="mixer__form" id="mixer-form">
+    <input
+      class="field"
+      id="player-name"
+      name="player"
+      type="text"
+      placeholder="Nombre del jugador"
+      autocomplete="off"
+      required
+      maxlength="20"
+    />
+    <button class="btn btn--ghost" type="submit">Ingresar jugador</button>
+    <button class="btn" type="button" id="mix-button" disabled>Mezclar</button>
+  </form>
+
+  <ul class="mixer__players" id="player-list" aria-label="Jugadores agregados"></ul>
+
+  <div class="mixer__output" aria-live="polite">
+    <h2 id="teams-title" hidden>Equipos</h2>
+    <div class="mixer__teams" id="teams"></div>
+    <div class="mixer__actions">
+      <button class="btn btn--secondary" type="button" id="share-button" hidden>
+        Compartir en WhatsApp
+      </button>
+      <button class="btn btn--ghost" type="button" id="reset-button" hidden>
+        Empezar de nuevo
+      </button>
+    </div>
+  </div>
+</section>
+
+<script>
+  const STORAGE_KEYS = {
+    players: "mixteam:players",
+    teams: "mixteam:teams",
+  } as const;
+
+  const MIN_PLAYERS = 4;
+
+  const form = document.querySelector<HTMLFormElement>("#mixer-form")!;
+  const input = document.querySelector<HTMLInputElement>("#player-name")!;
+  const mixButton = document.querySelector<HTMLButtonElement>("#mix-button")!;
+  const playerList = document.querySelector<HTMLUListElement>("#player-list")!;
+  const teamsTitle = document.querySelector<HTMLHeadingElement>("#teams-title")!;
+  const teamsEl = document.querySelector<HTMLDivElement>("#teams")!;
+  const shareButton = document.querySelector<HTMLButtonElement>("#share-button")!;
+  const resetButton = document.querySelector<HTMLButtonElement>("#reset-button")!;
+
+  type Teams = [string[], string[]] | null;
+
+  function load(): { players: string[]; teams: Teams } {
+    let players: string[] = [];
+    let teams: Teams = null;
+    try {
+      players = JSON.parse(localStorage.getItem(STORAGE_KEYS.players) ?? "[]");
+      teams = JSON.parse(localStorage.getItem(STORAGE_KEYS.teams) ?? "null");
+    } catch {
+      // Corrupted storage: start fresh instead of crashing.
+      localStorage.removeItem(STORAGE_KEYS.players);
+      localStorage.removeItem(STORAGE_KEYS.teams);
+    }
+    return { players, teams };
+  }
+
+  function save() {
+    localStorage.setItem(STORAGE_KEYS.players, JSON.stringify(players));
+    localStorage.setItem(STORAGE_KEYS.teams, JSON.stringify(teams));
+  }
+
+  let { players, teams } = load();
+
+  function render() {
+    renderPlayers();
+    renderTeams();
+    mixButton.disabled = players.length < MIN_PLAYERS;
+    shareButton.hidden = teams === null;
+    resetButton.hidden = players.length === 0 && teams === null;
+  }
+
+  function renderPlayers() {
+    playerList.replaceChildren();
+
+    if (players.length === 0) {
+      const li = document.createElement("li");
+      li.className = "mixer__empty";
+      li.textContent = "Todavía no hay jugadores. Agregá el primero 👆";
+      playerList.appendChild(li);
+      return;
+    }
+
+    players.forEach((player, index) => {
+      const li = document.createElement("li");
+      li.className = "mixer__player";
+
+      const label = document.createElement("span");
+      label.textContent = player;
+
+      const remove = document.createElement("button");
+      remove.type = "button";
+      remove.className = "mixer__remove";
+      remove.textContent = "×";
+      remove.setAttribute("aria-label", `Quitar a ${player}`);
+      remove.addEventListener("click", () => {
+        players.splice(index, 1);
+        // Changing the roster invalidates the current draw.
+        teams = null;
+        save();
+        render();
+      });
+
+      li.append(label, remove);
+      playerList.appendChild(li);
+    });
+  }
+
+  function renderTeams() {
+    teamsTitle.hidden = teams === null;
+    teamsEl.replaceChildren();
+
+    if (teams === null) return;
+
+    const [teamOne, teamTwo] = teams;
+    [[`Equipo 1`, teamOne], [`Equipo 2`, teamTwo]].forEach(([name, members]) => {
+      const card = document.createElement("article");
+      card.className = "mixer__team";
+
+      const heading = document.createElement("h3");
+      heading.textContent = name;
+
+      const list = document.createElement("ul");
+      members.forEach((member) => {
+        const li = document.createElement("li");
+        li.textContent = member;
+        list.appendChild(li);
+      });
+
+      card.append(heading, list);
+      teamsEl.appendChild(card);
+    });
+  }
+
+  /** Fisher–Yates: uniform shuffle, unlike the biased `sort(() => Math.random() - 0.5)`. */
+  function shuffle<T>(list: T[]): T[] {
+    const copy = [...list];
+    for (let i = copy.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [copy[i], copy[j]] = [copy[j], copy[i]];
+    }
+    return copy;
+  }
+
+  form.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const name = input.value.trim();
+    if (name === "") return;
+
+    const duplicate = players.some(
+      (player) => player.toLowerCase() === name.toLowerCase()
+    );
+    if (duplicate) {
+      input.value = "";
+      return;
+    }
+
+    players.push(name);
+    teams = null;
+    save();
+    render();
+    input.value = "";
+    input.focus();
+  });
+
+  mixButton.addEventListener("click", () => {
+    if (players.length < MIN_PLAYERS) return;
+    const shuffled = shuffle(players);
+    const split = Math.round(shuffled.length / 2);
+    teams = [shuffled.slice(0, split), shuffled.slice(split)];
+    save();
+    render();
+  });
+
+  shareButton.addEventListener("click", () => {
+    if (teams === null) return;
+    const [teamOne, teamTwo] = teams;
+    const text = [
+      "MiXteam — Tus equipos mezclados!",
+      `Equipo 1: ${teamOne.join(", ")}`,
+      `Equipo 2: ${teamTwo.join(", ")}`,
+    ].join("\n");
+    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank", "noopener");
+  });
+
+  resetButton.addEventListener("click", () => {
+    players = [];
+    teams = null;
+    save();
+    render();
+    input.focus();
+  });
+
+  render();
+</script>
+
+<style>
+  .mixer h1,
+  .mixer__lead {
+    text-align: center;
+  }
+
+  .mixer__lead {
+    color: var(--color-text-muted);
+    margin-bottom: var(--space-4);
+  }
+
+  .mixer__form {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    justify-content: center;
+    max-width: 40rem;
+    margin-inline: auto;
+  }
+
+  .mixer__form .field {
+    flex: 1 1 12rem;
+  }
+
+  .mixer__players {
+    max-width: 26rem;
+    margin: var(--space-4) auto 0;
+    padding: 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+  }
+
+  .mixer__empty {
+    color: var(--color-text-muted);
+    text-align: center;
+    font-size: var(--text-sm);
+    padding: var(--space-2);
+  }
+
+  .mixer__player {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    padding: var(--space-2) var(--space-3);
+  }
+
+  .mixer__remove {
+    border: none;
+    background: transparent;
+    color: var(--color-text-muted);
+    font-size: 1.25rem;
+    line-height: 1;
+    cursor: pointer;
+    padding: 0 var(--space-1);
+    border-radius: var(--radius-sm);
+  }
+
+  .mixer__remove:hover {
+    color: var(--color-danger);
+  }
+
+  .mixer__output {
+    margin-top: var(--space-5);
+  }
+
+  .mixer__teams {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+    gap: var(--space-3);
+    max-width: 40rem;
+    margin-inline: auto;
+  }
+
+  .mixer__team {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    padding: var(--space-3) var(--space-4);
+    box-shadow: 0 8px 24px rgb(6 12 28 / 35%);
+  }
+
+  .mixer__team h3 {
+    text-align: center;
+    color: var(--color-accent);
+    font-size: var(--text-md);
+  }
+
+  .mixer__team ul {
+    margin: 0;
+    padding-inline-start: 1.25rem;
+  }
+
+  .mixer__actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: var(--space-2);
+    margin-top: var(--space-4);
+  }
+
+  .btn--secondary {
+    background: var(--color-success);
+    color: #06251a;
+  }
+</style>

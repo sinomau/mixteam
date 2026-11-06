@@ -1,0 +1,16 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import FootballData from "../components/FootballData.astro";
+---
+
+<BaseLayout
+  title="Copa Libertadores"
+  description="Fixture, resultados y fase de grupos de la Copa CONMEBOL Libertadores."
+>
+  <FootballData
+    heading="Copa Libertadores"
+    logo="/assets/img/logo-LIB.png"
+    logoAlt="Logo de la Copa Libertadores"
+    endpoint="libertadores"
+  />
+</BaseLayout>

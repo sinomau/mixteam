@@ -1,0 +1,16 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import FootballData from "../components/FootballData.astro";
+---
+
+<BaseLayout
+  title="Liga Profesional"
+  description="Tabla de posiciones, resultados y fixture de la Liga Profesional Argentina."
+>
+  <FootballData
+    heading="Liga Profesional Argentina"
+    logo="/assets/img/logo-LPF.png"
+    logoAlt="Logo de la Liga Profesional de Fútbol"
+    endpoint="lpf"
+  />
+</BaseLayout>

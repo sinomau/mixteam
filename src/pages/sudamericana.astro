@@ -1,0 +1,16 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import FootballData from "../components/FootballData.astro";
+---
+
+<BaseLayout
+  title="Copa Sudamericana"
+  description="Fixture, resultados y fases eliminatorias de la Copa CONMEBOL Sudamericana."
+>
+  <FootballData
+    heading="Copa Sudamericana"
+    logo="/assets/img/logo-sudamericana.png"
+    logoAlt="Logo de la Copa Sudamericana"
+    endpoint="sudamericana"
+  />
+</BaseLayout>
