@@ -51,14 +51,6 @@
     </div>
   </div>
 
-  <section class="mixer__roster" aria-labelledby="roster-title">
-    <div class="mixer__section-head mixer__section-head--center">
-      <h2 id="roster-title">Jugadores</h2>
-      <span class="mixer__chip" id="players-count">0</span>
-    </div>
-    <ul class="mixer__players" id="player-list" aria-label="Jugadores agregados"></ul>
-  </section>
-
   <section class="mixer__output" id="mixer-output" aria-labelledby="teams-title">
     <div class="mixer__section-head">
       <h2 id="teams-title">Equipos</h2>
@@ -86,8 +78,6 @@
       </p>
       <span class="mixer__pitch-badge" id="pitch-badge" hidden>Provisorio</span>
     </div>
-
-    <div class="mixer__pitch-roster" id="pitch-roster" aria-hidden="true"></div>
   </section>
 
   <div class="mixer__actions" id="mixer-actions" hidden>
@@ -138,13 +128,10 @@
 
   const ruleEl = document.querySelector<HTMLParagraphElement>("#mixer-rule")!;
   const ruleText = document.querySelector<HTMLSpanElement>("#mixer-rule-text")!;
-  const playersCount = document.querySelector<HTMLSpanElement>("#players-count")!;
-  const playerList = document.querySelector<HTMLUListElement>("#player-list")!;
   const teamsCount = document.querySelector<HTMLSpanElement>("#teams-count")!;
   const tokensEl = document.querySelector<HTMLDivElement>("#tokens")!;
   const pitchEmpty = document.querySelector<HTMLParagraphElement>("#pitch-empty")!;
   const pitchBadge = document.querySelector<HTMLSpanElement>("#pitch-badge")!;
-  const pitchRoster = document.querySelector<HTMLDivElement>("#pitch-roster")!;
   const shareButton = document.querySelector<HTMLButtonElement>("#share-button")!;
   const reshuffleButton = document.querySelector<HTMLButtonElement>("#reshuffle-button")!;
   const resetButton = document.querySelector<HTMLButtonElement>("#reset-button")!;
@@ -460,63 +447,6 @@
     tokensEl.innerHTML = tokens.join("");
     teamsCount.hidden = teamOne.length + teamTwo.length === 0;
     teamsCount.textContent = `${teamOne.length} y ${teamTwo.length}`;
-    pitchRoster.hidden = teamOne.length + teamTwo.length === 0;
-    pitchRoster.innerHTML = [
-      { team: 1, label: "Equipo 1", members: teamOne },
-      { team: 2, label: "Equipo 2", members: teamTwo },
-    ]
-      .map(
-        (squad) => `
-          <div class="mixer__pitch-roster-team" data-team="${squad.team}">
-            <p class="mixer__pitch-roster-label">${squad.label}</p>
-            <ul>${squad.members.map((name) => `<li>${esc(name)}</li>`).join("")}</ul>
-          </div>
-        `
-      )
-      .join("");
-  }
-
-  function renderPlayers() {
-    playersCount.textContent = String(players.length);
-    playerList.replaceChildren();
-
-    if (players.length === 0) {
-      const li = document.createElement("li");
-      li.className = "mixer__empty";
-      li.textContent = "Todavía no hay jugadores. Agregá el primero 👆";
-      playerList.appendChild(li);
-      return;
-    }
-
-    players.forEach((player, index) => {
-      const li = document.createElement("li");
-      li.className = "mixer__player";
-
-      const label = document.createElement("span");
-      label.className = "mixer__player-name";
-      label.textContent = player;
-
-      const remove = document.createElement("button");
-      remove.type = "button";
-      remove.className = "mixer__remove";
-      remove.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18"></path><path d="M6 6l12 12"></path></svg>`;
-      remove.setAttribute("aria-label", `Quitar a ${player}`);
-      // Keep the focus in the field: clicking must not blur (and commit) it.
-      remove.addEventListener("mousedown", (event) => event.preventDefault());
-      remove.addEventListener("click", () => {
-        players.splice(index, 1);
-        // Changing the roster invalidates the current draw.
-        teams = null;
-        // The field is the list: it mirrors the roster.
-        pasteInput.value = players.length > 0 ? `${players.join("\n")}\n` : "";
-        save();
-        render();
-        updatePastePreview();
-      });
-
-      li.append(label, remove);
-      playerList.appendChild(li);
-    });
   }
 
   /** Provisional split while there is no draw: alternate halves by arrival. */
@@ -535,8 +465,6 @@
       teams = [shuffled.slice(0, half), shuffled.slice(half)];
       save();
     }
-
-    renderPlayers();
 
     const rule = ruleMessage(players.length);
     ruleEl.dataset.state = rule.state;
@@ -812,10 +740,6 @@
     margin-bottom: var(--space-3);
   }
 
-  .mixer__section-head--center {
-    justify-content: center;
-  }
-
   .mixer__section-head h2 {
     margin: 0;
     font-size: 1.25rem;
@@ -831,69 +755,6 @@
     font-weight: 800;
     letter-spacing: 0.02em;
     white-space: nowrap;
-  }
-
-  /* ----- Player chips ----- */
-  .mixer__players {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: 0.6rem;
-    margin: 0;
-    padding: 0;
-    list-style: none;
-  }
-
-  .mixer__empty {
-    color: var(--color-text-muted);
-    text-align: center;
-    font-size: var(--text-sm);
-    padding: var(--space-3);
-  }
-
-  .mixer__player {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 0.75rem;
-    flex: 0 1 12.5rem;
-    min-width: 9.5rem;
-    padding: 0.5rem 0.55rem 0.5rem 1rem;
-    border-radius: 999px;
-    background: var(--color-surface);
-    border: 1px solid var(--color-border);
-    font-size: var(--text-sm);
-    font-weight: 500;
-  }
-
-  .mixer__player-name {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .mixer__remove {
-    display: grid;
-    place-items: center;
-    width: 1.6rem;
-    height: 1.6rem;
-    padding: 0;
-    border: none;
-    border-radius: 50%;
-    background: transparent;
-    color: #6e8a79;
-    cursor: pointer;
-    transition: background-color var(--ease), color var(--ease);
-  }
-
-  .mixer__remove svg {
-    width: 13px;
-    height: 13px;
-  }
-
-  .mixer__remove:hover {
-    background: rgb(226 89 106 / 14%);
-    color: var(--color-danger);
   }
 
   /* ----- Output ----- */
@@ -1055,48 +916,6 @@
     white-space: nowrap;
   }
 
-  /* Compact roster below the pitch, where the tags have no room. */
-  .mixer__pitch-roster {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: var(--space-3);
-  }
-
-  .mixer__pitch-roster[hidden] {
-    display: none;
-  }
-
-  .mixer__pitch-roster-team {
-    padding: var(--space-2) var(--space-3);
-    border-radius: var(--radius-md);
-    border: 1px solid var(--color-border);
-    background: var(--color-surface);
-  }
-
-  .mixer__pitch-roster-label {
-    margin-bottom: 0.35rem;
-    font-size: 0.7rem;
-    font-weight: 800;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    color: var(--color-accent);
-  }
-
-  .mixer__pitch-roster-team[data-team="2"] .mixer__pitch-roster-label {
-    color: #eaf6ef;
-  }
-
-  .mixer__pitch-roster ul {
-    margin: 0;
-    padding: 0;
-    list-style: none;
-    display: flex;
-    flex-direction: column;
-    gap: 0.15rem;
-    font-size: var(--text-xs);
-    color: var(--color-text-soft);
-  }
-
   /* ----- Actions ----- */
   .mixer__actions {
     display: flex;
@@ -1142,10 +961,6 @@
       max-width: 6.5rem;
       padding: 0.22rem 0.45rem;
       font-size: 0.6875rem;
-    }
-
-    .mixer__pitch-roster {
-      display: none;
     }
   }
 
