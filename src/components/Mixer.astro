@@ -66,7 +66,7 @@
     <ul class="mixer__players" id="player-list" aria-label="Jugadores agregados"></ul>
   </section>
 
-  <section class="mixer__output" id="mixer-output" aria-live="polite" hidden>
+  <section class="mixer__output" id="mixer-output" aria-labelledby="teams-title">
     <div class="mixer__section-head">
       <h2 id="teams-title">Equipos</h2>
       <span class="mixer__chip" id="teams-count"></span>
@@ -88,6 +88,10 @@
       <span class="mixer__half-label mixer__half-label--one">Equipo 1</span>
       <span class="mixer__half-label mixer__half-label--two">Equipo 2</span>
       <div class="mixer__tokens" id="tokens" role="list" aria-label="Formación de los equipos"></div>
+      <p class="mixer__pitch-empty" id="pitch-empty">
+        Agregá jugadores y la cancha se arma sola
+      </p>
+      <span class="mixer__pitch-badge" id="pitch-badge" hidden>Provisorio</span>
     </div>
 
     <div class="mixer__pitch-roster" id="pitch-roster" aria-hidden="true"></div>
@@ -112,6 +116,7 @@
   /** Team sizes allowed by the product: even sides only. */
   const TEAM_SIZES: readonly number[] = [5, 6, 7, 8, 9, 11];
   const VALID_TOTALS = TEAM_SIZES.map((size) => size * 2);
+  const MAX_PLAYERS = Math.max(...VALID_TOTALS);
 
   /** Outfield lines per team size; the keeper is always implicit. */
   const FORMATIONS: Record<number, readonly number[]> = {
@@ -140,9 +145,10 @@
   const ruleText = document.querySelector<HTMLSpanElement>("#mixer-rule-text")!;
   const playersCount = document.querySelector<HTMLSpanElement>("#players-count")!;
   const playerList = document.querySelector<HTMLUListElement>("#player-list")!;
-  const output = document.querySelector<HTMLElement>("#mixer-output")!;
   const teamsCount = document.querySelector<HTMLSpanElement>("#teams-count")!;
   const tokensEl = document.querySelector<HTMLDivElement>("#tokens")!;
+  const pitchEmpty = document.querySelector<HTMLParagraphElement>("#pitch-empty")!;
+  const pitchBadge = document.querySelector<HTMLSpanElement>("#pitch-badge")!;
   const pitchRoster = document.querySelector<HTMLDivElement>("#pitch-roster")!;
   const shareButton = document.querySelector<HTMLButtonElement>("#share-button")!;
   const resetButton = document.querySelector<HTMLButtonElement>("#reset-button")!;
@@ -333,6 +339,35 @@
     return points;
   }
 
+  /**
+   * Slots for a squad. A full side gets its formation; a short or oversized
+   * one gets a plain spread so the board still fills up honestly.
+   */
+  function teamPositions(count: number): Point[] {
+    if (count >= 5 && count <= 11) return positionsFor(count);
+    return spreadPositions(count);
+  }
+
+  /** Evenly spread tokens in columns of at most five, from own goal inward. */
+  function spreadPositions(count: number): Point[] {
+    if (count <= 0) return [];
+
+    const cols = Math.ceil(count / 5);
+    const perCol = Math.ceil(count / cols);
+    const points: Point[] = [];
+
+    for (let i = 0; i < count; i++) {
+      const col = Math.floor(i / perCol);
+      const row = i % perCol;
+      const inCol = Math.min(perCol, count - col * perCol);
+      const x = cols === 1 ? 0.25 : 0.07 + ((col + 0.5) / cols) * 0.36;
+      const y = Y_MIN + ((row + 0.5) / inCol) * (Y_MAX - Y_MIN);
+      points.push({ x, y });
+    }
+
+    return points;
+  }
+
   function tokenMarkup(name: string, team: 1 | 2, point: Point): string {
     const x = team === 1 ? point.x : 1 - point.x;
     const initial = name.trim().charAt(0).toUpperCase() || "?";
@@ -351,14 +386,17 @@
   }
 
   function renderPitch(teamOne: string[], teamTwo: string[]): void {
-    const points = positionsFor(teamOne.length);
+    const onePoints = teamPositions(teamOne.length);
+    const twoPoints = teamPositions(teamTwo.length);
     const tokens = [
-      ...teamOne.map((name, i) => tokenMarkup(name, 1, points[i])),
-      ...teamTwo.map((name, i) => tokenMarkup(name, 2, points[i])),
+      ...teamOne.map((name, i) => tokenMarkup(name, 1, onePoints[i])),
+      ...teamTwo.map((name, i) => tokenMarkup(name, 2, twoPoints[i])),
     ];
 
     tokensEl.innerHTML = tokens.join("");
+    teamsCount.hidden = teamOne.length + teamTwo.length === 0;
     teamsCount.textContent = `${teamOne.length} y ${teamTwo.length}`;
+    pitchRoster.hidden = teamOne.length + teamTwo.length === 0;
     pitchRoster.innerHTML = [
       { team: 1, label: "Equipo 1", members: teamOne },
       { team: 2, label: "Equipo 2", members: teamTwo },
@@ -412,6 +450,14 @@
     });
   }
 
+  /** Provisional split while there is no draw: alternate halves by arrival. */
+  function provisionalTeams(): [string[], string[]] {
+    const one: string[] = [];
+    const two: string[] = [];
+    players.forEach((name, index) => (index % 2 === 0 ? one : two).push(name));
+    return [one, two];
+  }
+
   function render() {
     renderPlayers();
 
@@ -421,14 +467,12 @@
 
     mixButton.disabled = !VALID_TOTALS.includes(players.length);
 
-    if (teams === null) {
-      output.hidden = true;
-      tokensEl.replaceChildren();
-      pitchRoster.replaceChildren();
-    } else {
-      output.hidden = false;
-      renderPitch(teams[0], teams[1]);
-    }
+    // The board is always drawn: provisional while there is no draw.
+    const [teamOne, teamTwo] = teams ?? provisionalTeams();
+    renderPitch(teamOne, teamTwo);
+
+    pitchEmpty.hidden = players.length > 0;
+    pitchBadge.hidden = players.length === 0 || teams !== null;
 
     shareButton.hidden = teams === null;
     resetButton.hidden = players.length === 0 && teams === null;
@@ -478,6 +522,12 @@
           }`
         : "";
 
+    const room = Math.max(0, MAX_PLAYERS - players.length);
+    if (fresh.length > room) {
+      pasteHint.textContent = `Entran ${room} de ${fresh.length}: el máximo es ${MAX_PLAYERS} (11 y 11).`;
+      return;
+    }
+
     pasteHint.textContent =
       fresh.length === 1
         ? `1 jugador para agregar${skippedNote}.`
@@ -490,12 +540,19 @@
     const { fresh } = dedupeNames(splitPasted(pasteInput.value), players);
     if (fresh.length === 0) return;
 
-    players.push(...fresh);
+    const room = Math.max(0, MAX_PLAYERS - players.length);
+    if (room === 0) {
+      pasteHint.textContent = `Ya tenés ${MAX_PLAYERS} jugadores: es el máximo (11 y 11).`;
+      return;
+    }
+
+    players.push(...fresh.slice(0, room));
     teams = null;
     save();
     render();
 
-    pasteInput.value = "";
+    // Anything past the cap stays in the field instead of vanishing.
+    pasteInput.value = fresh.slice(room).join("\n");
     updatePastePreview();
     pasteInput.focus();
   });
@@ -813,6 +870,48 @@
     inset: 0;
   }
 
+  .mixer__pitch-empty {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    display: grid;
+    place-items: center;
+    padding: var(--space-4);
+    margin: 0;
+    text-align: center;
+    color: #cfe3d7;
+    font-size: var(--text-sm);
+    font-weight: 500;
+    text-shadow: 0 1px 6px rgb(2 10 6 / 65%);
+  }
+
+  .mixer__pitch-empty[hidden] {
+    display: none;
+  }
+
+  /* Marks a board that is not the result of a draw yet. */
+  .mixer__pitch-badge {
+    position: absolute;
+    top: 4.5%;
+    left: 50%;
+    z-index: 2;
+    transform: translateX(-50%);
+    padding: 0.18rem 0.6rem;
+    border: 1px solid rgb(182 240 74 / 40%);
+    border-radius: 999px;
+    background: rgb(8 18 14 / 70%);
+    color: var(--color-accent-soft);
+    font-size: 0.625rem;
+    font-weight: 800;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+
+  .mixer__pitch-badge[hidden] {
+    display: none;
+  }
+
   .mixer__token {
     position: absolute;
     left: calc(var(--x) * 100%);
@@ -860,6 +959,10 @@
     display: none;
     grid-template-columns: 1fr 1fr;
     gap: var(--space-3);
+  }
+
+  .mixer__pitch-roster[hidden] {
+    display: none;
   }
 
   .mixer__pitch-roster-team {
