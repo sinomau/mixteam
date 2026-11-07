@@ -1,4 +1,4 @@
----
+﻿---
 // Sports news grid. Headlines come from the /api/news server proxy —
 // no API keys in the browser. Legacy reference: legacy/js/news.js
 ---
@@ -49,8 +49,17 @@
                 ? `<img class="news__img" src="${esc(item.image)}" alt="" loading="lazy">`
                 : ""
             }
+            <time class="news__date" datetime="${esc(item.published)}">${esc(
+              new Date(String(item.published)).toLocaleDateString("es-AR", {
+                day: "2-digit",
+                month: "short",
+              })
+            )}</time>
             <h3 class="news__title">${esc(item.title)}</h3>
-            <p class="news__desc">${esc(item.description)}</p>
+            <div class="news__meta">
+              ${item.source ? `<span class="news__source">${esc(item.source)}</span>` : ""}
+            </div>
+            ${item.description ? `<p class="news__desc">${esc(item.description)}</p>` : ""}
             <a class="news__link" href="${esc(item.url)}" target="_blank" rel="noopener noreferrer">
               Leer más <span aria-hidden="true">→</span>
             </a>
@@ -66,7 +75,7 @@
   load();
 </script>
 
-<style>
+<style is:global>
   .news__grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(18rem, 1fr));
@@ -118,6 +127,24 @@
     -webkit-line-clamp: 3;
     -webkit-box-orient: vertical;
     overflow: hidden;
+  }
+
+  .news__source {
+    color: var(--color-accent);
+    font-size: var(--text-xs);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  .news__date {
+    padding-inline: var(--space-3);
+    color: var(--color-text-muted);
+    font-size: var(--text-xs);
+    margin-top: var(--space-1);
+  }
+
+  .news__title {
+    padding-top: 0 !important;
   }
 
   .news__card > .news__desc {

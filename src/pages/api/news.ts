@@ -23,6 +23,7 @@ function json(data: unknown, status = 200) {
 function decodeEntities(value: string): string {
   return value
     .replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, "$1")
+    .replace(/&nbsp;/gi, " ")
     .replace(/&lt;/g, "<")
     .replace(/&gt;/g, ">")
     .replace(/&quot;/g, '"')
@@ -60,11 +61,34 @@ function parseItems(xml: string) {
     const url = pick("link");
     if (!rawTitle || !url) continue;
 
-    const source = decodeEntities(pick("source"));
-    const title = tagLess(decodeEntities(rawTitle));
-    const description =
-      tagLess(decodeEntities(pick("description"))).slice(0, 280) ||
-      (source ? `Noticia de ${source}` : "Sin resumen disponible");
+    // Google News titles end with " - SourceName"; split it into its own label
+    // so cards read clean and the source is honest about where it comes from.
+    const lastDash = rawTitle.lastIndexOf(" - ");
+    const source =
+      decodeEntities(pick("source")) ||
+      (lastDash !== -1 ? decodeEntities(rawTitle.slice(lastDash + 3)).trim() : "");
+    const title = tagLess(
+      lastDash !== -1 ? decodeEntities(rawTitle.slice(0, lastDash)) : decodeEntities(rawTitle)
+    );
+    let description =
+      tagLess(decodeEntities(pick("description"))).slice(0, 280) || "";
+    // Google News double-escapes entities and repeats the title at the start
+    // of the description; decode again, drop the title, collapse whitespace.
+    description = decodeEntities(description)
+      .replace(/&nbsp;/gi, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+    if (title && description.toLowerCase().startsWith(title.toLowerCase())) {
+      description = description
+        .slice(title.length)
+        .replace(/^[\s\-–:·—]+/, "");
+    }
+    if (!description) description = "";
+    // If the summary degenerates to just the source name again, it adds
+    // nothing — drop it so the card shows title + source only.
+    if (source && description.toLowerCase() === source.toLowerCase()) {
+      description = "";
+    }
 
     items.push({ title, description, url, source, published: pick("pubDate") });
   }

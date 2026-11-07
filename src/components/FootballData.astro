@@ -1,4 +1,4 @@
----
+﻿---
 // Data-driven sports view shared by the three competition pages.
 // Tabs render standings, results, upcoming fixtures and live matches.
 // All data flows through the /api/football server proxy — no API keys
@@ -16,7 +16,7 @@ const { heading, logo, logoAlt, endpoint } = Astro.props;
 <section class="fb" data-endpoint={endpoint} aria-labelledby="fb-heading">
   <div class="section-title">
     <h2 id="fb-heading">{heading}</h2>
-    <img src={logo} alt={logoAlt} loading="eager" />
+    <img src={logo} alt={logoAlt} loading="eager" class="fb__comp-logo" />
   </div>
 
   <div class="fb__tabs" role="tablist" aria-label="Qué ver">
@@ -52,7 +52,7 @@ const { heading, logo, logoAlt, endpoint } = Astro.props;
   const errorMessage = `
     <div class="fb__error">
       <p>El contenido no está disponible en este momento.</p>
-      <p><button class="btn btn--ghost" onclick="location.reload()">Reintentar</button></p>
+      <p><button class="btn btn--ghost fb__retry">Reintentar</button></p>
     </div>
   `;
 
@@ -62,6 +62,12 @@ const { heading, logo, logoAlt, endpoint } = Astro.props;
 
   function setError() {
     panel.innerHTML = errorMessage;
+    panel
+      .querySelector(".fb__retry")
+      ?.addEventListener("click", () => {
+        activeTab = null;
+        load("standings");
+      });
   }
 
   function setHtml(html: string) {
@@ -90,35 +96,57 @@ const { heading, logo, logoAlt, endpoint } = Astro.props;
     );
   }
 
+  function fmtDate(iso: string): string {
+    return new Date(iso).toLocaleString("es-AR", {
+      weekday: "short",
+      day: "2-digit",
+      month: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  }
+
   function statusLabel(status: string): string {
     const labels: Record<string, string> = {
-      "First Half": "Primer tiempo",
-      "Second Half": "Segundo tiempo",
-      Halftime: "Entretiempo",
-      "Match Finished": "Terminado",
-      "Not Started": "Por jugar",
+      "Por jugar": "Por jugar",
+      "Finalizado": "Finalizado",
+      "En vivo": "En vivo",
     };
     return labels[status] ?? status;
   }
 
+  function clubMarkup(club: string, logo: string, align: "left" | "right"): string {
+    const img = logo
+      ? `<img class="fb__club-logo" src="${esc(logo)}" alt="" width="26" height="26" loading="lazy">`
+      : `<span class="fb__club-logo fb__club-logo--placeholder" aria-hidden="true"></span>`;
+    return align === "left"
+      ? `${img}<span>${esc(club)}</span>`
+      : `<span>${esc(club)}</span>${img}`;
+  }
+
   function renderStandings(groups: Array<{ groupName: string; rows: Array<Record<string, unknown>> }>): string {
+    if (groups.length === 0) {
+      return `<div class="fb__empty">Todavía no hay tabla publicada para esta competencia.</div>`;
+    }
     return groups
       .map(({ groupName, rows }) => {
         const body = rows
           .map(
             (r) => `
             <tr>
-              <td>${esc(r.rank)}</td>
-              <td><img class="fb__logo" src="${esc(r.logo)}" alt="" width="22" height="22" loading="lazy"></td>
-              <td>${esc(r.team)}</td>
-              <td>${esc(r.played)}</td>
-              <td>${esc(r.win)}</td>
-              <td>${esc(r.draw)}</td>
-              <td>${esc(r.lose)}</td>
-              <td>${esc(r.goalsFor)}</td>
-              <td>${esc(r.goalsAgainst)}</td>
-              <td>${esc(r.diff)}</td>
-              <td class="fb__pts">${esc(r.points)}</td>
+              <td class="fb__num-cell">${esc(r.rank)}</td>
+              <td class="fb__club-cell">
+                <img class="fb__table-logo" src="${esc(r.logo)}" alt="" width="22" height="22" loading="lazy">
+                <span>${esc(r.team)}</span>
+              </td>
+              <td class="fb__num-cell">${esc(r.played)}</td>
+              <td class="fb__num-cell">${esc(r.win)}</td>
+              <td class="fb__num-cell">${esc(r.draw)}</td>
+              <td class="fb__num-cell">${esc(r.lose)}</td>
+              <td class="fb__num-cell fb__dim">${esc(r.goalsFor)}</td>
+              <td class="fb__num-cell fb__dim">${esc(r.goalsAgainst)}</td>
+              <td class="fb__num-cell fb__dim">${esc(r.diff)}</td>
+              <td class="fb__num-cell fb__pts">${esc(r.points)}</td>
             </tr>
           `
           )
@@ -129,11 +157,16 @@ const { heading, logo, logoAlt, endpoint } = Astro.props;
             <table>
               <thead>
                 <tr>
-                  <th>Pos</th>
-                  <th></th>
+                  <th class="fb__num-cell">#</th>
                   <th>Club</th>
-                  <th>PJ</th><th>G</th><th>E</th><th>P</th>
-                  <th>GF</th><th>GC</th><th>DG</th><th>Pts</th>
+                  <th class="fb__num-cell" title="Partidos jugados">PJ</th>
+                  <th class="fb__num-cell" title="Ganados">G</th>
+                  <th class="fb__num-cell" title="Empatados">E</th>
+                  <th class="fb__num-cell" title="Perdidos">P</th>
+                  <th class="fb__num-cell" title="Goles a favor">GF</th>
+                  <th class="fb__num-cell" title="Goles en contra">GC</th>
+                  <th class="fb__num-cell" title="Diferencia de gol">DG</th>
+                  <th class="fb__num-cell" title="Puntos">Pts</th>
                 </tr>
               </thead>
               <tbody>${body}</tbody>
@@ -144,70 +177,45 @@ const { heading, logo, logoAlt, endpoint } = Astro.props;
       .join("");
   }
 
+  function scores(f: Record<string, unknown>): string {
+    if (String(f.status) === "Por jugar") {
+      return `<span class="fb__vs">vs</span>`;
+    }
+    return `<span class="fb__score">${esc(f.homeGoals)}<span class="fb__score-sep">–</span>${esc(f.awayGoals)}</span>`;
+  }
+
   function renderFixtures(fixtures: Array<Record<string, unknown>>): string {
     if (fixtures.length === 0) {
       return `<div class="fb__empty">No hay partidos para mostrar en esta sección.</div>`;
     }
     return fixtures
-      .map((f) => {
-        const round = esc(f.round);
-        const status = esc(f.status);
-        return `
-          <article class="fb__match">
+      .map(
+        (f) => `
+          <article class="fb__match${String(f.state) === "in" ? " fb__match--live" : ""}">
             <header class="fb__match-head">
-              <span>${round}</span>
-              <span class="fb__status">${status}</span>
+              <span>${esc(f.round)}</span>
+              <span class="fb__status${String(f.state) === "in" ? " fb__status--live" : ""}">${statusLabel(String(f.status))}${String(f.state) === "in" && f.elapsed ? ` · ${esc(f.elapsed)}` : ""}</span>
             </header>
             <div class="fb__match-body">
-              <span class="fb__club"><img src="${esc(f.homeLogo)}" alt="" width="24" height="24" loading="lazy"> ${esc(f.home)}</span>
-              <span class="fb__score">${goals(f.homeGoals, f.awayGoals, String(f.status))} </span>
-              <span class="fb__club">${esc(f.away)} <img src="${esc(f.awayLogo)}" alt="" width="24" height="24" loading="lazy"></span>
+              <span class="fb__club">${clubMarkup(String(f.home), String(f.homeLogo), "left")}</span>
+              ${scores(f)}
+              <span class="fb__club fb__club--away">${clubMarkup(String(f.away), String(f.awayLogo), "right")}</span>
             </div>
             <footer class="fb__match-foot">
               <span>${fmtDate(String(f.dateUtc))}</span>
-              <span>${esc(f.venue)}</span>
+              ${f.venue ? `<span>${esc(f.venue)}</span>` : ""}
             </footer>
           </article>
-        `;
-      })
+        `
+      )
       .join("");
-  }
-
-  function fmtDate(iso: string): string {
-    return new Date(iso).toLocaleString("es-AR", {
-      day: "2-digit",
-      month: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  }
-
-  function goals(home: unknown, away: unknown, status: string): string {
-    if (status === "Por jugar") return "vs";
-    return `${esc(home)} – ${esc(away)}`;
   }
 
   function renderLive(matches: Array<Record<string, unknown>>): string {
     if (matches.length === 0) {
       return `<div class="fb__empty">No hay partidos en vivo en este momento.</div>`;
     }
-    return matches
-      .map(
-        (m) => `
-        <article class="fb__match fb__match--live">
-          <header class="fb__match-head">
-            <span>${esc(m.league)}</span>
-            <span class="fb__status fb__status--live">${esc(m.elapsed)} · ${statusLabel(String(m.status))}</span>
-          </header>
-          <div class="fb__match-body">
-            <span class="fb__club"><img src="${esc(m.homeLogo)}" alt="" width="24" height="24">${esc(m.home)}</span>
-            <span class="fb__score">${esc(m.homeGoals)} – ${esc(m.awayGoals)}</span>
-            <span class="fb__club">${esc(m.away)}<img src="${esc(m.awayLogo)}" alt="" width="24" height="24"></span>
-          </div>
-        </article>
-      `
-      )
-      .join("");
+    return renderFixtures(matches);
   }
 
   async function load(view: string) {
@@ -241,9 +249,6 @@ const { heading, logo, logoAlt, endpoint } = Astro.props;
       if (activeTab === view) setError();
     } finally {
       inFlight = false;
-      if (activeTab === view) {
-        // allow re-click on the same tab if the user wants to retry manually
-      }
     }
   }
 
@@ -256,7 +261,18 @@ const { heading, logo, logoAlt, endpoint } = Astro.props;
   load("standings");
 </script>
 
-<style>
+<style is:global>
+  .fb__comp-logo {
+    height: 48px;
+    width: auto;
+    object-fit: contain;
+    /* Competition marks can be dark artwork; a light chip keeps them visible */
+    background: rgb(255 255 255 / 8%);
+    border-radius: var(--radius-md);
+    padding: 6px;
+  }
+
+  /* ----- Tabs ----- */
   .fb__tabs {
     display: flex;
     flex-wrap: wrap;
@@ -286,6 +302,7 @@ const { heading, logo, logoAlt, endpoint } = Astro.props;
     border-bottom-color: var(--color-accent);
   }
 
+  /* ----- Loading / errors / empty ----- */
   .fb__loading {
     text-align: center;
     color: var(--color-text-muted);
@@ -301,14 +318,19 @@ const { heading, logo, logoAlt, endpoint } = Astro.props;
     border-radius: var(--radius-md);
   }
 
+  /* ----- Standings ----- */
   .fb__group-title {
     font-size: var(--text-md);
-    margin-block: var(--space-4) var(--space-2);
+    margin: var(--space-4) 0 var(--space-2);
+    color: var(--color-text);
   }
 
   .fb__table-wrap {
-    margin: 0 0 var(--space-4);
+    margin: 0 0 var(--space-3);
     overflow-x: auto;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
   }
 
   .fb table {
@@ -317,33 +339,74 @@ const { heading, logo, logoAlt, endpoint } = Astro.props;
     font-size: var(--text-sm);
   }
 
-  .fb th,
-  .fb td {
-    text-align: left;
-    padding: var(--space-2) var(--space-2);
+  .fb thead th {
+    color: var(--color-text-muted);
+    font-weight: 700;
+    font-size: var(--text-xs);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    padding: var(--space-2);
     border-bottom: 1px solid var(--color-border);
+    background: var(--color-surface-raised);
+  }
+
+  .fb tbody td {
+    padding: var(--space-2);
+    border-bottom: 1px solid rgb(52 65 95 / 50%);
     white-space: nowrap;
   }
 
-  .fb th {
-    color: var(--color-text-muted);
-    font-weight: 600;
-    font-size: var(--text-xs);
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
+  .fb tbody tr:last-child td {
+    border-bottom: none;
   }
 
-  .fb__logo,
-  .fb .fb__club img {
+  .fb tbody tr:nth-child(even) {
+    background: rgb(39 51 79 / 40%);
+  }
+
+  .fb tbody tr:hover {
+    background: rgb(91 192 190 / 8%);
+  }
+
+  .fb__num-cell {
+    text-align: right;
+    width: 2.5rem;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .fb__club-cell {
+    font-weight: 600;
+  }
+
+  .fb__club-cell span {
     display: inline-block;
-    vertical-align: middle;
+    margin-left: var(--space-2);
+  }
+
+  .fb__dim {
+    color: var(--color-text-muted);
   }
 
   .fb__pts {
-    font-weight: 700;
+    font-weight: 800;
     color: var(--color-accent);
+    font-size: var(--text-md);
   }
 
+  .fb__table-logo {
+    display: inline-block;
+    width: 22px;
+    height: 22px;
+    object-fit: contain;
+    vertical-align: middle;
+  }
+
+  .fb__club-logo--placeholder {
+    background: var(--color-border);
+    border-radius: 50%;
+  }
+
+  /* ----- Match cards ----- */
   .fb__match {
     display: flex;
     flex-direction: column;
@@ -351,24 +414,44 @@ const { heading, logo, logoAlt, endpoint } = Astro.props;
     background: var(--color-surface);
     border: 1px solid var(--color-border);
     border-radius: var(--radius-md);
-    padding: var(--space-3);
+    padding: var(--space-3) var(--space-4);
     margin-bottom: var(--space-2);
+    box-shadow: 0 4px 14px rgb(6 12 28 / 25%);
   }
 
   .fb__match--live {
-    border-color: var(--color-accent);
+    border-color: rgb(9 202 112 / 55%);
   }
 
   .fb__match-head {
     display: flex;
     justify-content: space-between;
+    align-items: center;
+    gap: var(--space-2);
     color: var(--color-text-muted);
     font-size: var(--text-xs);
   }
 
+  .fb__match-head span:first-child {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .fb__status {
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-weight: 600;
+    flex-shrink: 0;
+  }
+
+  .fb__status--live {
+    color: var(--color-success);
+  }
+
   .fb__match-body {
     display: grid;
-    grid-template-columns: 1fr auto 1fr;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
     align-items: center;
     gap: var(--space-2);
   }
@@ -378,41 +461,53 @@ const { heading, logo, logoAlt, endpoint } = Astro.props;
     align-items: center;
     gap: var(--space-2);
     font-weight: 600;
+    min-width: 0;
   }
 
-  .fb__club:last-child {
-    justify-content: flex-start;
+  .fb__club span:not(.fb__score) {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .fb__club--away {
+    justify-content: flex-end;
+    text-align: right;
+  }
+
+  .fb__club-logo {
+    width: 26px;
+    height: 26px;
+    object-fit: contain;
+    flex-shrink: 0;
   }
 
   .fb__score {
-    font-weight: 700;
+    font-weight: 800;
+    font-size: var(--text-md);
     text-align: center;
+    padding-inline: var(--space-2);
+    font-variant-numeric: tabular-nums;
   }
 
-  .fb .fb__match-foot {
+  .fb__score-sep {
+    color: var(--color-text-muted);
+    padding-inline: 2px;
+  }
+
+  .fb__vs {
+    color: var(--color-text-muted);
+    font-size: var(--text-sm);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  .fb__match-foot {
     display: flex;
     justify-content: space-between;
+    flex-wrap: wrap;
+    gap: var(--space-1) var(--space-3);
     color: var(--color-text-muted);
     font-size: var(--text-xs);
-  }
-
-  .fb .fb__match-foot {
-    flex-wrap: wrap;
-  }
-
-  .fb__status {
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-  }
-
-  .fb__status--live {
-    color: var(--color-success);
-    font-weight: 700;
-  }
-
-  .fb .fb__club img {
-    width: 24px;
-    height: 24px;
-    object-fit: contain;
   }
 </style>

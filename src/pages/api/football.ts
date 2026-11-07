@@ -67,6 +67,21 @@ interface Competitor {
   homeAway?: string;
 }
 
+function venueText(venue: any): string {
+  if (!venue?.fullName) return "";
+  const name = venue.fullName;
+  const city: string = venue.address?.city ?? "";
+  if (!city) return name;
+
+  const strip = (s: string) => s.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
+  const strippedName = name.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
+  const idx = strippedName.indexOf(strip(city));
+  if (idx === -1) return `${name} — ${city}`;
+
+  const stadium = name.slice(0, idx).trim();
+  return stadium ? `${stadium} — ${city}` : name;
+}
+
 function mapEvent(event: any, leagueName: string) {
   const comp = event.competitions?.[0] ?? {};
   const home = (comp.competitors ?? []).find((c: Competitor) => c.homeAway === "home");
@@ -94,7 +109,7 @@ function mapEvent(event: any, leagueName: string) {
     awayLogo: away?.team?.logo ?? "",
     homeGoals: home?.score ?? "",
     awayGoals: away?.score ?? "",
-    venue: comp.venue?.fullName ?? "",
+    venue: venueText(comp.venue),
   };
 }
 
@@ -147,7 +162,7 @@ export const GET: APIRoute = async ({ url }) => {
                 const ga = statValue(stats, "pointsAgainst");
                 return {
                   team: entry.team?.displayName ?? "",
-                  logo: entry.team?.logo ?? "",
+                  logo: entry.team?.logo ?? entry.team?.logos?.[0]?.href ?? "",
                   played: statValue(stats, "gamesPlayed"),
                   win: statValue(stats, "wins"),
                   draw: statValue(stats, "ties"),
