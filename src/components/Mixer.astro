@@ -127,14 +127,14 @@
 
   /** Horizontal fractions inside one half, from own goal to halfway line. */
   const LINE_X: Record<number, readonly number[]> = {
-    2: [0.24, 0.385],
-    3: [0.18, 0.285, 0.385],
+    2: [0.21, 0.35],
+    3: [0.16, 0.255, 0.35],
     4: [0.145, 0.225, 0.305, 0.385],
   };
 
   const KEEPER_X = 0.065;
-  const Y_MIN = 0.12;
-  const Y_MAX = 0.88;
+  const Y_MIN = 0.08;
+  const Y_MAX = 0.92;
 
   const ruleEl = document.querySelector<HTMLParagraphElement>("#mixer-rule")!;
   const ruleText = document.querySelector<HTMLSpanElement>("#mixer-rule-text")!;
@@ -171,7 +171,19 @@
     return TEAM_SIZES.includes(value);
   }
 
-  const NAME_MAX = 20;
+  const NAME_MAX = 40;
+
+  /**
+   * Caps a name over the limit at a word boundary.
+   * Cutting mid-word used to turn different players into the same name,
+   * and the dedup then dropped them.
+   */
+  function capName(name: string): string {
+    if (name.length <= NAME_MAX) return name;
+    const cut = name.slice(0, NAME_MAX);
+    const space = cut.lastIndexOf(" ");
+    return (space > NAME_MAX * 0.5 ? cut.slice(0, space) : cut).trim();
+  }
 
   /** Accepts `1 mauro`, `1. mauro`, `1) mauro`, bullets, bold and bare lines. */
   function cleanName(raw: string): string {
@@ -184,13 +196,14 @@
         .replace(/^\s*\d{1,2}\s*[.)\-:]?\s*/, "");
     }
 
-    return name
-      .replace(/^[*_~`"'“”‘’\s]+/, "")
-      .replace(/[*_~`"'“”‘’\s]+$/, "")
-      .replace(/^[,;]+|[,;]+$/g, "")
-      .replace(/\s+/g, " ")
-      .trim()
-      .slice(0, NAME_MAX);
+    return capName(
+      name
+        .replace(/^[*_~`"'“”‘’\s]+/, "")
+        .replace(/[*_~`"'“”‘’\s]+$/, "")
+        .replace(/^[,;]+|[,;]+$/g, "")
+        .replace(/\s+/g, " ")
+        .trim()
+    );
   }
 
   /** Splits a pasted list into names, whatever list style WhatsApp produced. */
@@ -345,19 +358,45 @@
     return { text, state: "off" };
   }
 
+  /**
+   * Positions for a known team size using formations.
+   *
+   * Every player of the team gets its own slot on a vertical grid, and the
+   * formation columns deal those slots between them. Two name tags are
+   * therefore never at the same height, so they cannot overlap no matter
+   * how long the names are.
+   */
   function positionsFor(size: number): Point[] {
     const lines = FORMATIONS[size];
     if (!lines) return [];
 
-    const points: Point[] = [{ x: KEEPER_X, y: 0.5 }];
     const xs = LINE_X[lines.length] ?? [];
+    const band = Y_MAX - Y_MIN;
+    const keeperSlot = Math.floor((size - 1) / 2);
 
-    lines.forEach((count, lineIndex) => {
-      const x = xs[lineIndex] ?? 0.3;
-      for (let i = 0; i < count; i++) {
-        const step = (i + 1) / (count + 1);
-        points.push({ x, y: Y_MIN + step * (Y_MAX - Y_MIN) });
+    // Outfield slots, from the top of the band down, minus the keeper's.
+    const slots: number[] = [];
+    for (let k = 0; k < size; k += 1) {
+      if (k !== keeperSlot) slots.push(k);
+    }
+
+    // Deal the slots to the columns, always filling the emptiest one.
+    const columns: number[][] = lines.map(() => []);
+    slots.forEach((slot) => {
+      let target = 0;
+      for (let c = 1; c < columns.length; c += 1) {
+        const room = columns[c].length < lines[c];
+        if (room && columns[c].length < columns[target].length) target = c;
       }
+      columns[target].push(slot);
+    });
+
+    const slotY = (slot: number) => Y_MIN + ((slot + 0.5) / size) * band;
+
+    const points: Point[] = [{ x: KEEPER_X, y: slotY(keeperSlot) }];
+    columns.forEach((column, lineIndex) => {
+      const x = xs[lineIndex] ?? 0.3;
+      column.forEach((slot) => points.push({ x, y: slotY(slot) }));
     });
 
     return points;
@@ -393,17 +432,18 @@
   }
 
   function tokenMarkup(name: string, team: 1 | 2, point: Point): string {
+    // Team 2 stands mirrored, so both squads face the halfway line.
     const x = team === 1 ? point.x : 1 - point.x;
-    const initial = name.trim().charAt(0).toUpperCase() || "?";
+    const y = team === 1 ? point.y : 1 - point.y;
+    const keeper = point.x === KEEPER_X ? ' data-role="keeper"' : "";
     return `
       <div
         class="mixer__token"
-        data-team="${team}"
-        style="--x:${x.toFixed(4)};--y:${point.y.toFixed(4)}"
+        data-team="${team}"${keeper}
+        style="--x:${x.toFixed(4)};--y:${y.toFixed(4)}"
         role="listitem"
         aria-label="${esc(name)}, Equipo ${team}"
       >
-        <span class="mixer__disc" aria-hidden="true">${esc(initial)}</span>
         <span class="mixer__token-name">${esc(name)}</span>
       </div>
     `;
@@ -670,7 +710,7 @@
   .mixer {
     display: flex;
     flex-direction: column;
-    gap: var(--space-5);
+    gap: var(--space-4);
   }
 
   /* ----- Hero ----- */
@@ -867,13 +907,12 @@
     display: none;
   }
 
-  /* ----- Pitch board ----- */
+  /* ----- Pitch board (mobile first) ----- */
   .mixer__pitch {
-    --disc: 40px;
     position: relative;
     width: 100%;
-    aspect-ratio: 1088 / 440;
-    border-radius: 20px;
+    aspect-ratio: 1.4;
+    border-radius: 16px;
     overflow: hidden;
     background: linear-gradient(180deg, var(--pitch-from) 0%, var(--pitch-to) 100%);
     border: 1px solid #1e4a34;
@@ -907,9 +946,9 @@
     position: absolute;
     top: 4.5%;
     z-index: 1;
-    font-size: 0.72rem;
+    font-size: 0.6rem;
     font-weight: 800;
-    letter-spacing: 0.16em;
+    letter-spacing: 0.12em;
     text-transform: uppercase;
     color: #eaf6ef;
     text-shadow: 0 1px 4px rgb(2 10 6 / 60%);
@@ -971,51 +1010,54 @@
     display: none;
   }
 
+  /* Each player is a name tag sitting on the pitch, not an initial. */
   .mixer__token {
     position: absolute;
     left: calc(var(--x) * 100%);
     top: calc(var(--y) * 100%);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 5px;
-    transform: translate(-50%, calc(var(--disc) / -2));
+    transform: translate(-50%, -50%);
     max-width: 5rem;
-  }
-
-  .mixer__disc {
-    width: var(--disc);
-    height: var(--disc);
-    display: grid;
-    place-items: center;
-    border-radius: 50%;
-    border: 2px solid #0b2a1e;
+    padding: 0.14rem 0.32rem;
+    border: 1px solid rgb(8 18 14 / 30%);
+    border-radius: 999px;
     background: var(--color-accent);
     color: #14260a;
-    font-size: calc(var(--disc) * 0.4);
-    font-weight: 800;
-    line-height: 1;
+    font-size: 0.5625rem;
+    font-weight: 700;
+    line-height: 1.2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
     box-shadow: 0 3px 10px rgb(2 10 6 / 55%);
   }
 
-  .mixer__token[data-team="2"] .mixer__disc {
+  .mixer__token[data-team="2"] {
     background: #eaf6ef;
   }
 
+  /* The keeper stands in the goal: the tag is anchored to the goal line
+     so it never gets clipped by the edge of the pitch. */
+  .mixer__token[data-role="keeper"] {
+    left: 2%;
+    transform: translate(0, -50%);
+  }
+
+  .mixer__token[data-role="keeper"][data-team="2"] {
+    left: 98%;
+    transform: translate(-100%, -50%);
+  }
+
   .mixer__token-name {
+    display: block;
     max-width: 100%;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    font-size: 0.75rem;
-    font-weight: 600;
-    color: #d6e9dc;
-    text-shadow: 0 1px 4px rgb(2 10 6 / 75%);
   }
 
-  /* Compact roster shown only when token labels do not fit. */
+  /* Compact roster below the pitch, where the tags have no room. */
   .mixer__pitch-roster {
-    display: none;
+    display: grid;
     grid-template-columns: 1fr 1fr;
     gap: var(--space-3);
   }
@@ -1067,53 +1109,55 @@
     display: none;
   }
 
-  @media (max-width: 1099px) {
-    .mixer__pitch {
-      --disc: 34px;
-      aspect-ratio: 2.3;
-    }
-
-    .mixer__token-name {
-      font-size: 0.6875rem;
-    }
-
-    .mixer__token {
-      gap: 4px;
-    }
-  }
-
-  @media (max-width: 899px) {
-    .mixer__pitch {
-      aspect-ratio: 2.2;
-    }
-
-    .mixer__token-name {
-      display: none;
-    }
-
-    .mixer__token {
-      gap: 0;
-    }
-
-    .mixer__pitch-roster {
-      display: grid;
-    }
-  }
-
-  @media (max-width: 720px) {
+  /* Mobile first: the base styles are the phone layout and every
+     breakpoint only adds room as the screen grows. */
+  @media (min-width: 721px) {
     .mixer {
-      gap: var(--space-4);
+      gap: var(--space-5);
     }
 
     .mixer__pitch {
-      --disc: 26px;
-      aspect-ratio: 3 / 2;
-      border-radius: 16px;
+      aspect-ratio: 2.05;
+      border-radius: 20px;
+    }
+
+    .mixer__token {
+      max-width: 5.5rem;
+      padding: 0.18rem 0.4rem;
+      font-size: 0.625rem;
     }
 
     .mixer__half-label {
-      font-size: 0.6rem;
-      letter-spacing: 0.12em;
+      font-size: 0.72rem;
+      letter-spacing: 0.16em;
+    }
+  }
+
+  @media (min-width: 900px) {
+    .mixer__pitch {
+      aspect-ratio: 2.15;
+    }
+
+    .mixer__token {
+      max-width: 6.5rem;
+      padding: 0.22rem 0.45rem;
+      font-size: 0.6875rem;
+    }
+
+    .mixer__pitch-roster {
+      display: none;
+    }
+  }
+
+  @media (min-width: 1100px) {
+    .mixer__pitch {
+      aspect-ratio: 2.25;
+    }
+
+    .mixer__token {
+      max-width: 7rem;
+      padding: 0.26rem 0.55rem;
+      font-size: 0.75rem;
     }
   }
 </style>
