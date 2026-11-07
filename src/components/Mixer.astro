@@ -250,16 +250,22 @@
               : line.length;
           chunks.push(line.slice(start, end));
         });
+      } else if (/[,;]/.test(line)) {
+        chunks.push(...line.split(/[,;]+/));
       } else {
         chunks.push(line);
       }
     }
 
-    const commaSeparated = chunks.length === 1 && /[,;]/.test(chunks[0]);
-    const names = (commaSeparated ? chunks[0].split(/[,;]+/) : chunks).map(cleanName);
+    const names = chunks.map(cleanName);
 
-    // Lines ending in a colon are headers ("Jugadores:"), not players.
-    return names.filter((name) => name !== "" && !name.endsWith(":"));
+    // Headers from the chat ("Jugadores:", "Equipo 1") are not players.
+    const headerWords =
+      /^(?:jugadores|lista|convocados|plantel|equipos?|partido|fulbito|f[uú]tbol)\b/i;
+
+    return names.filter(
+      (name) => name !== "" && !name.endsWith(":") && !headerWords.test(name)
+    );
   }
 
   function dedupeNames(
