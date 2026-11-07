@@ -1,44 +1,95 @@
 ﻿---
-// Team mixer island: the star feature of the original hand-built site,
-// rewritten with one-directional state and the original bugs fixed.
+// Team mixer island: the star feature of the site.
+// The output is a football-pitch board: both squads stand on their own half.
+// Product rule: teams must be even and 5, 6, 7, 8, 9 or 11 players per side.
 // Legacy reference: legacy/js/index.js
 ---
 
 <section class="mixer" aria-labelledby="mixer-title">
-  <h1 id="mixer-title">Crea tus equipos</h1>
-  <p class="mixer__lead">
-    Armá los equipos para ese fulbito. Agregá cuatro o más jugadores y
-    mezclalos al azar.
-  </p>
+  <div class="mixer__hero">
+    <h1 id="mixer-title">Crea tus equipos</h1>
+    <p class="mixer__lead">
+      Armá los equipos para ese fulbito. Equipos parejos de 5, 6, 7, 8, 9 u 11
+      por lado.
+    </p>
 
-  <form class="mixer__form" id="mixer-form">
-    <input
-      class="field"
-      id="player-name"
-      name="player"
-      type="text"
-      placeholder="Nombre del jugador"
-      autocomplete="off"
-      required
-      maxlength="20"
-    />
-    <button class="btn btn--ghost" type="submit">Ingresar jugador</button>
-    <button class="btn" type="button" id="mix-button" disabled>Mezclar</button>
-  </form>
+    <form class="mixer__form" id="mixer-form">
+      <input
+        class="field"
+        id="player-name"
+        name="player"
+        type="text"
+        placeholder="Nombre del jugador"
+        autocomplete="off"
+        required
+        maxlength="20"
+      />
+      <button class="btn btn--soft" type="submit">Ingresar jugador</button>
+      <button class="btn" type="button" id="mix-button" disabled>Mezclar</button>
+    </form>
 
-  <ul class="mixer__players" id="player-list" aria-label="Jugadores agregados"></ul>
+    <p class="mixer__rule" id="mixer-rule" aria-live="polite" data-state="idle">
+      <svg
+        class="mixer__rule-icon"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        aria-hidden="true"
+      >
+        <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path>
+        <circle cx="9" cy="7" r="4"></circle>
+        <path d="M22 21v-2a4 4 0 0 0-3-3.87"></path>
+        <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+      </svg>
+      <span id="mixer-rule-text">Mínimo 10 jugadores: dos equipos de 5 y 5.</span>
+    </p>
+  </div>
 
-  <div class="mixer__output" aria-live="polite">
-    <h2 id="teams-title" hidden>Equipos</h2>
-    <div class="mixer__teams" id="teams"></div>
-    <div class="mixer__actions">
-      <button class="btn btn--secondary" type="button" id="share-button" hidden>
-        Compartir en WhatsApp
-      </button>
-      <button class="btn btn--ghost" type="button" id="reset-button" hidden>
-        Empezar de nuevo
-      </button>
+  <section class="mixer__roster" aria-labelledby="roster-title">
+    <div class="mixer__section-head mixer__section-head--center">
+      <h2 id="roster-title">Jugadores</h2>
+      <span class="mixer__chip" id="players-count">0</span>
     </div>
+    <ul class="mixer__players" id="player-list" aria-label="Jugadores agregados"></ul>
+  </section>
+
+  <section class="mixer__output" id="mixer-output" aria-live="polite" hidden>
+    <div class="mixer__section-head">
+      <h2 id="teams-title">Equipos</h2>
+      <span class="mixer__chip" id="teams-count"></span>
+    </div>
+
+    <div class="mixer__pitch" id="pitch">
+      <div class="mixer__pitch-lines" aria-hidden="true">
+        <svg viewBox="0 0 1088 440" preserveAspectRatio="none">
+          <rect x="16" y="16" width="1056" height="408" rx="10"></rect>
+          <line x1="544" y1="16" x2="544" y2="424"></line>
+          <circle cx="544" cy="220" r="72"></circle>
+          <circle cx="544" cy="220" r="4" class="mixer__spot"></circle>
+          <rect x="16" y="120" width="112" height="200"></rect>
+          <rect x="960" y="120" width="112" height="200"></rect>
+          <rect x="16" y="168" width="46" height="104"></rect>
+          <rect x="1026" y="168" width="46" height="104"></rect>
+        </svg>
+      </div>
+      <span class="mixer__half-label mixer__half-label--one">Equipo 1</span>
+      <span class="mixer__half-label mixer__half-label--two">Equipo 2</span>
+      <div class="mixer__tokens" id="tokens" role="list" aria-label="Formación de los equipos"></div>
+    </div>
+
+    <div class="mixer__pitch-roster" id="pitch-roster" aria-hidden="true"></div>
+  </section>
+
+  <div class="mixer__actions" id="mixer-actions" hidden>
+    <button class="btn btn--whatsapp" type="button" id="share-button" hidden>
+      Compartir en WhatsApp
+    </button>
+    <button class="btn btn--ghost" type="button" id="reset-button" hidden>
+      Empezar de nuevo
+    </button>
   </div>
 </section>
 
@@ -48,31 +99,92 @@
     teams: "mixteam:teams",
   } as const;
 
-  const MIN_PLAYERS = 4;
+  /** Team sizes allowed by the product: even sides only. */
+  const TEAM_SIZES: readonly number[] = [5, 6, 7, 8, 9, 11];
+  const VALID_TOTALS = TEAM_SIZES.map((size) => size * 2);
+
+  /** Outfield lines per team size; the keeper is always implicit. */
+  const FORMATIONS: Record<number, readonly number[]> = {
+    5: [2, 2],
+    6: [2, 2, 1],
+    7: [3, 2, 1],
+    8: [3, 3, 1],
+    9: [3, 3, 2],
+    11: [4, 4, 2],
+  };
+
+  /** Horizontal fractions inside one half, from own goal to halfway line. */
+  const LINE_X: Record<number, readonly number[]> = {
+    2: [0.24, 0.385],
+    3: [0.18, 0.285, 0.385],
+    4: [0.145, 0.225, 0.305, 0.385],
+  };
+
+  const KEEPER_X = 0.065;
+  const Y_MIN = 0.12;
+  const Y_MAX = 0.88;
 
   const form = document.querySelector<HTMLFormElement>("#mixer-form")!;
   const input = document.querySelector<HTMLInputElement>("#player-name")!;
   const mixButton = document.querySelector<HTMLButtonElement>("#mix-button")!;
+  const ruleEl = document.querySelector<HTMLParagraphElement>("#mixer-rule")!;
+  const ruleText = document.querySelector<HTMLSpanElement>("#mixer-rule-text")!;
+  const playersCount = document.querySelector<HTMLSpanElement>("#players-count")!;
   const playerList = document.querySelector<HTMLUListElement>("#player-list")!;
-  const teamsTitle = document.querySelector<HTMLHeadingElement>("#teams-title")!;
-  const teamsEl = document.querySelector<HTMLDivElement>("#teams")!;
+  const output = document.querySelector<HTMLElement>("#mixer-output")!;
+  const teamsCount = document.querySelector<HTMLSpanElement>("#teams-count")!;
+  const tokensEl = document.querySelector<HTMLDivElement>("#tokens")!;
+  const pitchRoster = document.querySelector<HTMLDivElement>("#pitch-roster")!;
   const shareButton = document.querySelector<HTMLButtonElement>("#share-button")!;
   const resetButton = document.querySelector<HTMLButtonElement>("#reset-button")!;
+  const actions = document.querySelector<HTMLDivElement>("#mixer-actions")!;
 
   type Teams = [string[], string[]] | null;
+  type Point = { x: number; y: number };
+
+  function esc(value: unknown): string {
+    return String(value ?? "").replace(/[&<>"']/g, (ch) =>
+      ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;",
+      })[ch]!
+    );
+  }
+
+  function isTeamSize(value: number): boolean {
+    return TEAM_SIZES.includes(value);
+  }
 
   function load(): { players: string[]; teams: Teams } {
     let players: string[] = [];
     let teams: Teams = null;
     try {
-      players = JSON.parse(localStorage.getItem(STORAGE_KEYS.players) ?? "[]");
-      teams = JSON.parse(localStorage.getItem(STORAGE_KEYS.teams) ?? "null");
+      const rawPlayers = JSON.parse(localStorage.getItem(STORAGE_KEYS.players) ?? "[]");
+      const rawTeams = JSON.parse(localStorage.getItem(STORAGE_KEYS.teams) ?? "null");
+      if (Array.isArray(rawPlayers)) {
+        players = rawPlayers.filter((name): name is string => typeof name === "string");
+      }
+      teams = normalizeTeams(players, rawTeams);
     } catch {
       // Corrupted storage: start fresh instead of crashing.
       localStorage.removeItem(STORAGE_KEYS.players);
       localStorage.removeItem(STORAGE_KEYS.teams);
     }
     return { players, teams };
+  }
+
+  /** A stored draw is only valid when it is two even, allowed-sized squads. */
+  function normalizeTeams(players: string[], raw: unknown): Teams {
+    if (!Array.isArray(raw) || raw.length !== 2) return null;
+    const [one, two] = raw;
+    if (!Array.isArray(one) || !Array.isArray(two)) return null;
+    if (one.length !== two.length || !isTeamSize(one.length)) return null;
+    const stored = [...one, ...two].map(String).sort().join("|");
+    const current = [...players].map(String).sort().join("|");
+    return stored === current ? [one.map(String), two.map(String)] : null;
   }
 
   function save() {
@@ -82,15 +194,96 @@
 
   let { players, teams } = load();
 
-  function render() {
-    renderPlayers();
-    renderTeams();
-    mixButton.disabled = players.length < MIN_PLAYERS;
-    shareButton.hidden = teams === null;
-    resetButton.hidden = players.length === 0 && teams === null;
+  function nearestTotal(count: number): { total: number; diff: number } {
+    let best = VALID_TOTALS[0];
+    for (const total of VALID_TOTALS) {
+      const distance = Math.abs(total - count);
+      const bestDistance = Math.abs(best - count);
+      if (distance < bestDistance || (distance === bestDistance && total > best)) {
+        best = total;
+      }
+    }
+    return { total: best, diff: best - count };
+  }
+
+  function ruleMessage(count: number): { text: string; state: "idle" | "ok" | "off" } {
+    if (count === 0) {
+      return { text: "Mínimo 10 jugadores: dos equipos de 5 y 5.", state: "idle" };
+    }
+    if (VALID_TOTALS.includes(count)) {
+      const size = count / 2;
+      return { text: `Listo: ${count} jugadores → ${size} y ${size}.`, state: "ok" };
+    }
+    const { total, diff } = nearestTotal(count);
+    const pair = `${total / 2} y ${total / 2}`;
+    const text =
+      diff > 0
+        ? `Sumá ${diff} jugador${diff === 1 ? "" : "es"} para ${total} (${pair}).`
+        : `Te sobra${diff === -1 ? "" : "n"} ${-diff} para ${total} (${pair}).`;
+    return { text, state: "off" };
+  }
+
+  function positionsFor(size: number): Point[] {
+    const lines = FORMATIONS[size];
+    if (!lines) return [];
+
+    const points: Point[] = [{ x: KEEPER_X, y: 0.5 }];
+    const xs = LINE_X[lines.length] ?? [];
+
+    lines.forEach((count, lineIndex) => {
+      const x = xs[lineIndex] ?? 0.3;
+      for (let i = 0; i < count; i++) {
+        const step = (i + 1) / (count + 1);
+        points.push({ x, y: Y_MIN + step * (Y_MAX - Y_MIN) });
+      }
+    });
+
+    return points;
+  }
+
+  function tokenMarkup(name: string, team: 1 | 2, point: Point): string {
+    const x = team === 1 ? point.x : 1 - point.x;
+    const initial = name.trim().charAt(0).toUpperCase() || "?";
+    return `
+      <div
+        class="mixer__token"
+        data-team="${team}"
+        style="--x:${x.toFixed(4)};--y:${point.y.toFixed(4)}"
+        role="listitem"
+        aria-label="${esc(name)}, Equipo ${team}"
+      >
+        <span class="mixer__disc" aria-hidden="true">${esc(initial)}</span>
+        <span class="mixer__token-name">${esc(name)}</span>
+      </div>
+    `;
+  }
+
+  function renderPitch(teamOne: string[], teamTwo: string[]): void {
+    const points = positionsFor(teamOne.length);
+    const tokens = [
+      ...teamOne.map((name, i) => tokenMarkup(name, 1, points[i])),
+      ...teamTwo.map((name, i) => tokenMarkup(name, 2, points[i])),
+    ];
+
+    tokensEl.innerHTML = tokens.join("");
+    teamsCount.textContent = `${teamOne.length} y ${teamTwo.length}`;
+    pitchRoster.innerHTML = [
+      { team: 1, label: "Equipo 1", members: teamOne },
+      { team: 2, label: "Equipo 2", members: teamTwo },
+    ]
+      .map(
+        (squad) => `
+          <div class="mixer__pitch-roster-team" data-team="${squad.team}">
+            <p class="mixer__pitch-roster-label">${squad.label}</p>
+            <ul>${squad.members.map((name) => `<li>${esc(name)}</li>`).join("")}</ul>
+          </div>
+        `
+      )
+      .join("");
   }
 
   function renderPlayers() {
+    playersCount.textContent = String(players.length);
     playerList.replaceChildren();
 
     if (players.length === 0) {
@@ -106,12 +299,13 @@
       li.className = "mixer__player";
 
       const label = document.createElement("span");
+      label.className = "mixer__player-name";
       label.textContent = player;
 
       const remove = document.createElement("button");
       remove.type = "button";
       remove.className = "mixer__remove";
-      remove.textContent = "×";
+      remove.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18"></path><path d="M6 6l12 12"></path></svg>`;
       remove.setAttribute("aria-label", `Quitar a ${player}`);
       remove.addEventListener("click", () => {
         players.splice(index, 1);
@@ -126,30 +320,27 @@
     });
   }
 
-  function renderTeams() {
-    teamsTitle.hidden = teams === null;
-    teamsEl.replaceChildren();
+  function render() {
+    renderPlayers();
 
-    if (teams === null) return;
+    const rule = ruleMessage(players.length);
+    ruleEl.dataset.state = rule.state;
+    ruleText.textContent = rule.text;
 
-    const [teamOne, teamTwo] = teams;
-    [[`Equipo 1`, teamOne], [`Equipo 2`, teamTwo]].forEach(([name, members]) => {
-      const card = document.createElement("article");
-      card.className = "mixer__team";
+    mixButton.disabled = !VALID_TOTALS.includes(players.length);
 
-      const heading = document.createElement("h3");
-      heading.textContent = name;
+    if (teams === null) {
+      output.hidden = true;
+      tokensEl.replaceChildren();
+      pitchRoster.replaceChildren();
+    } else {
+      output.hidden = false;
+      renderPitch(teams[0], teams[1]);
+    }
 
-      const list = document.createElement("ul");
-      members.forEach((member) => {
-        const li = document.createElement("li");
-        li.textContent = member;
-        list.appendChild(li);
-      });
-
-      card.append(heading, list);
-      teamsEl.appendChild(card);
-    });
+    shareButton.hidden = teams === null;
+    resetButton.hidden = players.length === 0 && teams === null;
+    actions.hidden = shareButton.hidden && resetButton.hidden;
   }
 
   /** Fisher–Yates: uniform shuffle, unlike the biased `sort(() => Math.random() - 0.5)`. */
@@ -184,10 +375,10 @@
   });
 
   mixButton.addEventListener("click", () => {
-    if (players.length < MIN_PLAYERS) return;
+    if (!VALID_TOTALS.includes(players.length)) return;
     const shuffled = shuffle(players);
-    const split = Math.round(shuffled.length / 2);
-    teams = [shuffled.slice(0, split), shuffled.slice(split)];
+    const half = shuffled.length / 2;
+    teams = [shuffled.slice(0, half), shuffled.slice(half)];
     save();
     render();
   });
@@ -197,8 +388,8 @@
     const [teamOne, teamTwo] = teams;
     const text = [
       "MiXteam — Tus equipos mezclados!",
-      `Equipo 1: ${teamOne.join(", ")}`,
-      `Equipo 2: ${teamTwo.join(", ")}`,
+      `Equipo 1 (${teamOne.length}): ${teamOne.join(", ")}`,
+      `Equipo 2 (${teamTwo.length}): ${teamTwo.join(", ")}`,
     ].join("\n");
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank", "noopener");
   });
@@ -215,113 +406,379 @@
 </script>
 
 <style is:global>
-  .mixer h1,
-  .mixer__lead {
+  .mixer {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-5);
+  }
+
+  /* ----- Hero ----- */
+  .mixer__hero {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-3);
     text-align: center;
   }
 
+  .mixer h1 {
+    margin: 0;
+  }
+
   .mixer__lead {
+    max-width: 44ch;
     color: var(--color-text-muted);
-    margin-bottom: var(--space-4);
+    font-size: var(--text-md);
   }
 
   .mixer__form {
     display: flex;
     flex-wrap: wrap;
-    gap: var(--space-2);
-    justify-content: center;
-    max-width: 40rem;
-    margin-inline: auto;
+    gap: 0.75rem;
+    width: min(100%, 49rem);
+    margin-top: var(--space-2);
   }
 
   .mixer__form .field {
-    flex: 1 1 12rem;
+    flex: 1 1 14rem;
   }
 
+  .mixer__rule {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: 0.45rem 0.9rem;
+    border-radius: 999px;
+    border: 1px solid #26382c;
+    background: var(--color-surface-soft);
+    color: #bfd3c6;
+    font-size: var(--text-xs);
+    font-weight: 600;
+  }
+
+  .mixer__rule[data-state="ok"] {
+    border-color: rgb(182 240 74 / 45%);
+    color: var(--color-accent-soft);
+  }
+
+  .mixer__rule[data-state="off"] {
+    border-color: rgb(226 89 106 / 35%);
+    color: #f0b4bc;
+  }
+
+  .mixer__rule-icon {
+    width: 14px;
+    height: 14px;
+    flex-shrink: 0;
+    color: var(--color-accent);
+  }
+
+  /* ----- Section heads & chips ----- */
+  .mixer__section-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+    width: 100%;
+    margin-bottom: var(--space-3);
+  }
+
+  .mixer__section-head--center {
+    justify-content: center;
+  }
+
+  .mixer__section-head h2 {
+    margin: 0;
+    font-size: 1.25rem;
+  }
+
+  .mixer__chip {
+    padding: 0.3rem 0.72rem;
+    border-radius: 999px;
+    border: 1px solid #2c4a3c;
+    background: #1a2e24;
+    color: var(--color-accent);
+    font-size: 0.75rem;
+    font-weight: 800;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+  }
+
+  /* ----- Player chips ----- */
   .mixer__players {
-    max-width: 26rem;
-    margin: var(--space-4) auto 0;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.6rem;
+    margin: 0;
     padding: 0;
     list-style: none;
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-1);
   }
 
   .mixer__empty {
     color: var(--color-text-muted);
     text-align: center;
     font-size: var(--text-sm);
-    padding: var(--space-2);
+    padding: var(--space-3);
   }
 
   .mixer__player {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: var(--space-3);
+    gap: 0.75rem;
+    flex: 0 1 12.5rem;
+    min-width: 9.5rem;
+    padding: 0.5rem 0.55rem 0.5rem 1rem;
+    border-radius: 999px;
     background: var(--color-surface);
     border: 1px solid var(--color-border);
-    border-radius: var(--radius-md);
-    padding: var(--space-2) var(--space-3);
+    font-size: var(--text-sm);
+    font-weight: 500;
+  }
+
+  .mixer__player-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .mixer__remove {
+    display: grid;
+    place-items: center;
+    width: 1.6rem;
+    height: 1.6rem;
+    padding: 0;
     border: none;
+    border-radius: 50%;
     background: transparent;
-    color: var(--color-text-muted);
-    font-size: 1.25rem;
-    line-height: 1;
+    color: #6e8a79;
     cursor: pointer;
-    padding: 0 var(--space-1);
-    border-radius: var(--radius-sm);
+    transition: background-color var(--ease), color var(--ease);
+  }
+
+  .mixer__remove svg {
+    width: 13px;
+    height: 13px;
   }
 
   .mixer__remove:hover {
+    background: rgb(226 89 106 / 14%);
     color: var(--color-danger);
   }
 
+  /* ----- Output ----- */
   .mixer__output {
-    margin-top: var(--space-5);
-  }
-
-  .mixer__teams {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+    display: flex;
+    flex-direction: column;
     gap: var(--space-3);
-    max-width: 40rem;
-    margin-inline: auto;
   }
 
-  .mixer__team {
-    background: var(--color-surface);
+  .mixer__output[hidden] {
+    display: none;
+  }
+
+  /* ----- Pitch board ----- */
+  .mixer__pitch {
+    --disc: 40px;
+    position: relative;
+    width: 100%;
+    aspect-ratio: 1088 / 440;
+    border-radius: 20px;
+    overflow: hidden;
+    background: linear-gradient(180deg, var(--pitch-from) 0%, var(--pitch-to) 100%);
+    border: 1px solid #1e4a34;
+    box-shadow: var(--shadow-float);
+  }
+
+  .mixer__pitch-lines {
+    position: absolute;
+    inset: 0;
+  }
+
+  .mixer__pitch-lines svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+
+  .mixer__pitch-lines :is(rect, circle, line) {
+    fill: none;
+    stroke: var(--pitch-line);
+    stroke-width: 2;
+    vector-effect: non-scaling-stroke;
+  }
+
+  .mixer__pitch-lines .mixer__spot {
+    fill: var(--pitch-line);
+    stroke: none;
+  }
+
+  .mixer__half-label {
+    position: absolute;
+    top: 4.5%;
+    z-index: 1;
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: #eaf6ef;
+    text-shadow: 0 1px 4px rgb(2 10 6 / 60%);
+  }
+
+  .mixer__half-label--one {
+    left: 3.2%;
+    color: var(--color-accent-soft);
+  }
+
+  .mixer__half-label--two {
+    right: 3.2%;
+  }
+
+  .mixer__tokens {
+    position: absolute;
+    inset: 0;
+  }
+
+  .mixer__token {
+    position: absolute;
+    left: calc(var(--x) * 100%);
+    top: calc(var(--y) * 100%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+    transform: translate(-50%, calc(var(--disc) / -2));
+    max-width: 5rem;
+  }
+
+  .mixer__disc {
+    width: var(--disc);
+    height: var(--disc);
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    border: 2px solid #0b2a1e;
+    background: var(--color-accent);
+    color: #14260a;
+    font-size: calc(var(--disc) * 0.4);
+    font-weight: 800;
+    line-height: 1;
+    box-shadow: 0 3px 10px rgb(2 10 6 / 55%);
+  }
+
+  .mixer__token[data-team="2"] .mixer__disc {
+    background: #eaf6ef;
+  }
+
+  .mixer__token-name {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #d6e9dc;
+    text-shadow: 0 1px 4px rgb(2 10 6 / 75%);
+  }
+
+  /* Compact roster shown only when token labels do not fit. */
+  .mixer__pitch-roster {
+    display: none;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-3);
+  }
+
+  .mixer__pitch-roster-team {
+    padding: var(--space-2) var(--space-3);
+    border-radius: var(--radius-md);
     border: 1px solid var(--color-border);
-    border-radius: var(--radius-lg);
-    padding: var(--space-3) var(--space-4);
-    box-shadow: 0 8px 24px rgb(6 12 28 / 35%);
+    background: var(--color-surface);
   }
 
-  .mixer__team h3 {
-    text-align: center;
+  .mixer__pitch-roster-label {
+    margin-bottom: 0.35rem;
+    font-size: 0.7rem;
+    font-weight: 800;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
     color: var(--color-accent);
-    font-size: var(--text-md);
   }
 
-  .mixer__team ul {
+  .mixer__pitch-roster-team[data-team="2"] .mixer__pitch-roster-label {
+    color: #eaf6ef;
+  }
+
+  .mixer__pitch-roster ul {
     margin: 0;
-    padding-inline-start: 1.25rem;
+    padding: 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    font-size: var(--text-xs);
+    color: var(--color-text-soft);
   }
 
+  /* ----- Actions ----- */
   .mixer__actions {
     display: flex;
     flex-wrap: wrap;
     justify-content: center;
-    gap: var(--space-2);
-    margin-top: var(--space-4);
+    gap: 0.75rem;
   }
 
-  .btn--secondary {
-    background: var(--color-success);
-    color: #06251a;
+  .mixer__actions[hidden] {
+    display: none;
+  }
+
+  @media (max-width: 1099px) {
+    .mixer__pitch {
+      --disc: 34px;
+      aspect-ratio: 2.3;
+    }
+
+    .mixer__token-name {
+      font-size: 0.6875rem;
+    }
+
+    .mixer__token {
+      gap: 4px;
+    }
+  }
+
+  @media (max-width: 899px) {
+    .mixer__pitch {
+      aspect-ratio: 2.2;
+    }
+
+    .mixer__token-name {
+      display: none;
+    }
+
+    .mixer__token {
+      gap: 0;
+    }
+
+    .mixer__pitch-roster {
+      display: grid;
+    }
+  }
+
+  @media (max-width: 720px) {
+    .mixer {
+      gap: var(--space-4);
+    }
+
+    .mixer__pitch {
+      --disc: 26px;
+      aspect-ratio: 3 / 2;
+      border-radius: 16px;
+    }
+
+    .mixer__half-label {
+      font-size: 0.6rem;
+      letter-spacing: 0.12em;
+    }
   }
 </style>
