@@ -105,6 +105,7 @@
 
 <script>
   const STORAGE_KEYS = {
+    list: "mixteam:list",
     players: "mixteam:players",
     teams: "mixteam:teams",
   } as const;
@@ -250,22 +251,49 @@
     return { fresh, skipped };
   }
 
-  function load(): { players: string[]; teams: Teams } {
-    let players: string[] = [];
+  /** Every name in the text, cleaned and deduped. Not capped. */
+  function parseAll(text: string): string[] {
+    const { fresh } = dedupeNames(splitPasted(text), []);
+    return fresh;
+  }
+
+  /** The line still being typed: everything after the last newline. */
+  function parsePending(text: string): string[] {
+    const normalized = text.replace(/\r\n?/g, "\n");
+    const cut = normalized.lastIndexOf("\n");
+    return splitPasted(cut === -1 ? normalized : normalized.slice(cut + 1));
+  }
+
+  function load(): { text: string; players: string[]; teams: Teams } {
+    let text = "";
     let teams: Teams = null;
     try {
-      const rawPlayers = JSON.parse(localStorage.getItem(STORAGE_KEYS.players) ?? "[]");
-      const rawTeams = JSON.parse(localStorage.getItem(STORAGE_KEYS.teams) ?? "null");
-      if (Array.isArray(rawPlayers)) {
-        players = rawPlayers.filter((name): name is string => typeof name === "string");
+      text = localStorage.getItem(STORAGE_KEYS.list) ?? "";
+
+      // Migration: rosters saved before the list field existed.
+      if (text.trim() === "") {
+        const legacy = JSON.parse(localStorage.getItem(STORAGE_KEYS.players) ?? "[]");
+        if (Array.isArray(legacy)) {
+          text = legacy
+            .filter((name): name is string => typeof name === "string")
+            .join("\n");
+        }
       }
+
+      text = text.replace(/\r\n?/g, "\n");
+      if (text.trim() !== "" && !text.endsWith("\n")) text += "\n";
+
+      const players = parseAll(text).slice(0, MAX_PLAYERS);
+      const rawTeams = JSON.parse(localStorage.getItem(STORAGE_KEYS.teams) ?? "null");
       teams = normalizeTeams(players, rawTeams);
+      return { text, players, teams };
     } catch {
       // Corrupted storage: start fresh instead of crashing.
+      localStorage.removeItem(STORAGE_KEYS.list);
       localStorage.removeItem(STORAGE_KEYS.players);
       localStorage.removeItem(STORAGE_KEYS.teams);
+      return { text: "", players: [], teams: null };
     }
-    return { players, teams };
   }
 
   /** A stored draw is only valid when it is two even, allowed-sized squads. */
@@ -280,11 +308,13 @@
   }
 
   function save() {
+    localStorage.setItem(STORAGE_KEYS.list, pasteInput.value);
     localStorage.setItem(STORAGE_KEYS.players, JSON.stringify(players));
     localStorage.setItem(STORAGE_KEYS.teams, JSON.stringify(teams));
   }
 
-  let { players, teams } = load();
+  let { text, players, teams } = load();
+  pasteInput.value = text;
 
   function nearestTotal(count: number): { total: number; diff: number } {
     let best = VALID_TOTALS[0];
@@ -431,12 +461,17 @@
       remove.className = "mixer__remove";
       remove.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18"></path><path d="M6 6l12 12"></path></svg>`;
       remove.setAttribute("aria-label", `Quitar a ${player}`);
+      // Keep the focus in the field: clicking must not blur (and commit) it.
+      remove.addEventListener("mousedown", (event) => event.preventDefault());
       remove.addEventListener("click", () => {
         players.splice(index, 1);
         // Changing the roster invalidates the current draw.
         teams = null;
+        // The field is the list: it mirrors the roster.
+        pasteInput.value = players.length > 0 ? `${players.join("\n")}\n` : "";
         save();
         render();
+        updatePastePreview();
       });
 
       li.append(label, remove);
@@ -491,12 +526,23 @@
   }
 
   function updatePastePreview() {
-    const parsed = splitPasted(pasteInput.value);
-    const { fresh, skipped } = dedupeNames(parsed, players);
+    const total = parseAll(pasteInput.value).length;
+    if (total > MAX_PLAYERS) {
+      pasteHint.textContent = `Entran ${MAX_PLAYERS} de ${total}: el máximo es ${MAX_PLAYERS} (11 y 11).`;
+      return;
+    }
 
-    if (parsed.length === 0) {
+    // Only the line being typed is pending: the rest is already on the pitch.
+    const pending = parsePending(pasteInput.value);
+    const { fresh, skipped } = dedupeNames(pending, players);
+
+    if (pending.length === 0) {
       pasteHint.textContent =
-        "Escribí un nombre y apretá Enter, o pegá la lista completa.";
+        players.length === 0
+          ? "Escribí un nombre y apretá Enter, o pegá la lista completa."
+          : `${players.length} jugador${
+              players.length === 1 ? "" : "es"
+            } en la cancha · Enter para sumar otro.`;
       return;
     }
 
@@ -528,37 +574,38 @@
   }
 
   /**
-   * Adds whatever is in the field. Enter, paste and blur all land here,
-   * so there is no button to press.
+   * The field IS the list: every name in it becomes a player on the pitch.
+   * Enter, paste and blur all land here, so there is no button to press.
    */
-  function commitField(): boolean {
-    const { fresh } = dedupeNames(splitPasted(pasteInput.value), players);
-    if (fresh.length === 0) return false;
+  function commitList(): boolean {
+    const raw = pasteInput.value.replace(/\r\n?/g, "\n");
+    if (raw.trim() === "") return false;
 
-    const room = Math.max(0, MAX_PLAYERS - players.length);
-    if (room === 0) {
-      pasteHint.textContent = `Ya tenés ${MAX_PLAYERS} jugadores: es el máximo (11 y 11).`;
-      return false;
-    }
+    const names = parseAll(raw).slice(0, MAX_PLAYERS);
+    if (names.length === 0) return false;
 
-    players.push(...fresh.slice(0, room));
-    teams = null;
+    // The list stays visible in the field, with the caret on a fresh line.
+    const next = raw.endsWith("\n") ? raw : `${raw}\n`;
+    if (pasteInput.value !== next) pasteInput.value = next;
+    pasteInput.setSelectionRange(next.length, next.length);
+
+    const changed = names.join("\u0000") !== players.join("\u0000");
+    players = names;
+    if (changed) teams = null;
+
     save();
     render();
-
-    // Anything past the cap stays in the field instead of vanishing.
-    pasteInput.value = fresh.slice(room).join("\n");
     updatePastePreview();
     return true;
   }
 
   pasteInput.addEventListener("input", updatePastePreview);
 
-  // Enter adds the name instead of breaking a line.
+  // Enter commits the name being typed and drops the caret on a new line.
   pasteInput.addEventListener("keydown", (event) => {
     if (event.key === "Enter") {
       event.preventDefault();
-      commitField();
+      commitList();
       return;
     }
     if (event.key === "Escape" && pasteInput.value !== "") {
@@ -572,13 +619,18 @@
   // after the paste, so commit on the next tick with the final value.
   pasteInput.addEventListener("paste", () => {
     window.setTimeout(() => {
-      if (pasteInput.value.trim() !== "") commitField();
+      if (pasteInput.value.trim() !== "") commitList();
     }, 0);
   });
 
   pasteInput.addEventListener("blur", () => {
-    if (pasteInput.value.trim() !== "") commitField();
+    if (pasteInput.value.trim() !== "") commitList();
   });
+
+  // Clicking a button must not blur the field (that would commit a half-typed name).
+  for (const button of [shareButton, reshuffleButton, resetButton]) {
+    button.addEventListener("mousedown", (event) => event.preventDefault());
+  }
 
   reshuffleButton.addEventListener("click", () => {
     if (!VALID_TOTALS.includes(players.length)) return;
@@ -603,10 +655,10 @@
   resetButton.addEventListener("click", () => {
     players = [];
     teams = null;
-    save();
     pasteInput.value = "";
-    updatePastePreview();
+    save();
     render();
+    updatePastePreview();
     pasteInput.focus();
   });
 
