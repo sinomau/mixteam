@@ -9,11 +9,11 @@
   <div class="mixer__hero">
     <h1 id="mixer-title">Crea tus equipos</h1>
     <p class="mixer__lead">
-      Armá los equipos para ese fulbito. Equipos parejos de 5, 6, 7, 8, 9 u 11
-      por lado.
+      Armá los equipos para ese fulbito. Pegá la lista y se mezclan solos:
+      equipos parejos de 5, 6, 7, 8, 9 u 11 por lado.
     </p>
 
-    <form class="mixer__form" id="mixer-form">
+    <div class="mixer__form">
       <label class="mixer__form-label" for="paste-input">
         Pegá la lista del grupo o escribí los nombres
       </label>
@@ -25,14 +25,9 @@
         spellcheck="false"
       ></textarea>
       <p class="mixer__form-hint" id="paste-hint" aria-live="polite">
-        Una por línea, numeradas, con viñetas o separadas por comas.
+        Escribí un nombre y apretá Enter, o pegá la lista completa.
       </p>
-      <div class="mixer__form-actions">
-        <button class="btn btn--soft" type="submit" id="paste-add" disabled>
-          Agregar jugadores
-        </button>
-      </div>
-    </form>
+    </div>
 
     <div class="mixer__meta">
       <p class="mixer__rule" id="mixer-rule" aria-live="polite" data-state="idle">
@@ -53,8 +48,6 @@
         </svg>
         <span id="mixer-rule-text">Mínimo 10 jugadores: dos equipos de 5 y 5.</span>
       </p>
-
-      <button class="btn" type="button" id="mix-button" disabled>Mezclar</button>
     </div>
   </div>
 
@@ -98,6 +91,9 @@
   </section>
 
   <div class="mixer__actions" id="mixer-actions" hidden>
+    <button class="btn btn--ghost" type="button" id="reshuffle-button" hidden>
+      Mezclar de nuevo
+    </button>
     <button class="btn btn--whatsapp" type="button" id="share-button" hidden>
       Compartir en WhatsApp
     </button>
@@ -139,8 +135,6 @@
   const Y_MIN = 0.12;
   const Y_MAX = 0.88;
 
-  const form = document.querySelector<HTMLFormElement>("#mixer-form")!;
-  const mixButton = document.querySelector<HTMLButtonElement>("#mix-button")!;
   const ruleEl = document.querySelector<HTMLParagraphElement>("#mixer-rule")!;
   const ruleText = document.querySelector<HTMLSpanElement>("#mixer-rule-text")!;
   const playersCount = document.querySelector<HTMLSpanElement>("#players-count")!;
@@ -151,11 +145,11 @@
   const pitchBadge = document.querySelector<HTMLSpanElement>("#pitch-badge")!;
   const pitchRoster = document.querySelector<HTMLDivElement>("#pitch-roster")!;
   const shareButton = document.querySelector<HTMLButtonElement>("#share-button")!;
+  const reshuffleButton = document.querySelector<HTMLButtonElement>("#reshuffle-button")!;
   const resetButton = document.querySelector<HTMLButtonElement>("#reset-button")!;
   const actions = document.querySelector<HTMLDivElement>("#mixer-actions")!;
   const pasteInput = document.querySelector<HTMLTextAreaElement>("#paste-input")!;
   const pasteHint = document.querySelector<HTMLParagraphElement>("#paste-hint")!;
-  const pasteAdd = document.querySelector<HTMLButtonElement>("#paste-add")!;
 
   type Teams = [string[], string[]] | null;
   type Point = { x: number; y: number };
@@ -459,13 +453,19 @@
   }
 
   function render() {
+    // A complete roster mixes itself: there is no button to press.
+    if (teams === null && VALID_TOTALS.includes(players.length)) {
+      const shuffled = shuffle(players);
+      const half = shuffled.length / 2;
+      teams = [shuffled.slice(0, half), shuffled.slice(half)];
+      save();
+    }
+
     renderPlayers();
 
     const rule = ruleMessage(players.length);
     ruleEl.dataset.state = rule.state;
     ruleText.textContent = rule.text;
-
-    mixButton.disabled = !VALID_TOTALS.includes(players.length);
 
     // The board is always drawn: provisional while there is no draw.
     const [teamOne, teamTwo] = teams ?? provisionalTeams();
@@ -475,8 +475,9 @@
     pitchBadge.hidden = players.length === 0 || teams !== null;
 
     shareButton.hidden = teams === null;
-    resetButton.hidden = players.length === 0 && teams === null;
-    actions.hidden = shareButton.hidden && resetButton.hidden;
+    reshuffleButton.hidden = teams === null;
+    resetButton.hidden = players.length === 0;
+    actions.hidden = shareButton.hidden && reshuffleButton.hidden && resetButton.hidden;
   }
 
   /** Fisher–Yates: uniform shuffle, unlike the biased `sort(() => Math.random() - 0.5)`. */
@@ -493,17 +494,9 @@
     const parsed = splitPasted(pasteInput.value);
     const { fresh, skipped } = dedupeNames(parsed, players);
 
-    pasteAdd.disabled = fresh.length === 0;
-    pasteAdd.textContent =
-      fresh.length === 0
-        ? "Agregar jugadores"
-        : fresh.length === 1
-          ? "Agregar 1 jugador"
-          : `Agregar ${fresh.length} jugadores`;
-
     if (parsed.length === 0) {
       pasteHint.textContent =
-        "Una por línea, numeradas, con viñetas o separadas por comas.";
+        "Escribí un nombre y apretá Enter, o pegá la lista completa.";
       return;
     }
 
@@ -515,6 +508,12 @@
       return;
     }
 
+    const room = Math.max(0, MAX_PLAYERS - players.length);
+    if (fresh.length > room) {
+      pasteHint.textContent = `Entran ${room} de ${fresh.length}: el máximo es ${MAX_PLAYERS} (11 y 11).`;
+      return;
+    }
+
     const skippedNote =
       skipped > 0
         ? ` · ${skipped} duplicado${skipped === 1 ? "" : "s"} salteado${
@@ -522,28 +521,24 @@
           }`
         : "";
 
-    const room = Math.max(0, MAX_PLAYERS - players.length);
-    if (fresh.length > room) {
-      pasteHint.textContent = `Entran ${room} de ${fresh.length}: el máximo es ${MAX_PLAYERS} (11 y 11).`;
-      return;
-    }
-
     pasteHint.textContent =
       fresh.length === 1
-        ? `1 jugador para agregar${skippedNote}.`
-        : `${fresh.length} jugadores para agregar${skippedNote}.`;
+        ? `1 jugador listo · Enter para sumar${skippedNote}.`
+        : `${fresh.length} jugadores listos · Enter para sumar${skippedNote}.`;
   }
 
-  /** Single entry point: the textarea is both the paste target and manual entry. */
-  form.addEventListener("submit", (event) => {
-    event.preventDefault();
+  /**
+   * Adds whatever is in the field. Enter, paste and blur all land here,
+   * so there is no button to press.
+   */
+  function commitField(): boolean {
     const { fresh } = dedupeNames(splitPasted(pasteInput.value), players);
-    if (fresh.length === 0) return;
+    if (fresh.length === 0) return false;
 
     const room = Math.max(0, MAX_PLAYERS - players.length);
     if (room === 0) {
       pasteHint.textContent = `Ya tenés ${MAX_PLAYERS} jugadores: es el máximo (11 y 11).`;
-      return;
+      return false;
     }
 
     players.push(...fresh.slice(0, room));
@@ -554,20 +549,38 @@
     // Anything past the cap stays in the field instead of vanishing.
     pasteInput.value = fresh.slice(room).join("\n");
     updatePastePreview();
-    pasteInput.focus();
-  });
+    return true;
+  }
 
   pasteInput.addEventListener("input", updatePastePreview);
 
-  // Enter inserts a line, so Ctrl/Cmd+Enter adds the whole list.
+  // Enter adds the name instead of breaking a line.
   pasteInput.addEventListener("keydown", (event) => {
-    if ((event.ctrlKey || event.metaKey) && event.key === "Enter") {
+    if (event.key === "Enter") {
       event.preventDefault();
-      form.requestSubmit();
+      commitField();
+      return;
+    }
+    if (event.key === "Escape" && pasteInput.value !== "") {
+      event.preventDefault();
+      pasteInput.value = "";
+      updatePastePreview();
     }
   });
 
-  mixButton.addEventListener("click", () => {
+  // A pasted list lands without touching anything: the browser fires input
+  // after the paste, so commit on the next tick with the final value.
+  pasteInput.addEventListener("paste", () => {
+    window.setTimeout(() => {
+      if (pasteInput.value.trim() !== "") commitField();
+    }, 0);
+  });
+
+  pasteInput.addEventListener("blur", () => {
+    if (pasteInput.value.trim() !== "") commitField();
+  });
+
+  reshuffleButton.addEventListener("click", () => {
     if (!VALID_TOTALS.includes(players.length)) return;
     const shuffled = shuffle(players);
     const half = shuffled.length / 2;
@@ -658,13 +671,7 @@
     color: var(--color-text-muted);
   }
 
-  .mixer__form-actions {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: flex-end;
-  }
-
-  /* ----- Rule chip + mix action ----- */
+  /* ----- Rule chip ----- */
   .mixer__meta {
     display: flex;
     flex-wrap: wrap;
