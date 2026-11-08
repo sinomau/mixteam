@@ -10,6 +10,9 @@ import {
   isValidEventId,
   eventsHtml,
   statsHtml,
+  statsAdvancedHtml,
+  leadersHtml,
+  commentaryHtml,
   halvesHtml,
 } from "../../lib/matchDetail";
 
@@ -38,6 +41,9 @@ export const GET: APIRoute = async ({ url }) => {
         events: eventsHtml(detail),
         stats: statsHtml(detail),
         halves: halvesHtml(detail),
+        statsAdvanced: statsAdvancedHtml(detail),
+        leaders: leadersHtml(detail),
+        commentary: commentaryHtml(detail),
       },
     });
   } catch (err: any) {
