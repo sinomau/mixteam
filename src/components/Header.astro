@@ -39,3 +39,37 @@ const path = Astro.url.pathname.replace(/\/$/, "") || "/";
     <WeatherChip />
   </div>
 </header>
+
+<script>
+  // On mobile the nav is a scroll strip with no visible scrollbar. Two
+  // things have to be true for it to work: the user has to know that there
+  // is more to the side, and the section they are on has to be visible
+  // without scrolling first.
+  const nav = document.querySelector<HTMLElement>(".site-nav")!;
+  const list = nav.querySelector<HTMLUListElement>("ul")!;
+
+  function updateEdges(): void {
+    const max = list.scrollWidth - list.clientWidth;
+    nav.classList.toggle("has-overflow-start", max > 1 && list.scrollLeft > 1);
+    nav.classList.toggle("has-overflow-end", max > 1 && list.scrollLeft < max - 1);
+  }
+
+  function centerCurrent(): void {
+    const current = list.querySelector<HTMLAnchorElement>('[aria-current="page"]');
+    if (!current) return;
+
+    const navBox = nav.getBoundingClientRect();
+    const linkBox = current.getBoundingClientRect();
+    const delta = linkBox.left - navBox.left - (list.clientWidth - linkBox.width) / 2;
+    if (Math.abs(delta) < 1) return;
+
+    list.scrollLeft += delta;
+    updateEdges();
+  }
+
+  centerCurrent();
+  updateEdges();
+
+  list.addEventListener("scroll", updateEdges, { passive: true });
+  window.addEventListener("resize", updateEdges);
+</script>
