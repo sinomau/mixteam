@@ -10,6 +10,21 @@
     <h1 id="mixer-title">Crea tus equipos</h1>
     <p class="mixer__lead">Pegá la lista y se mezclan solos.</p>
 
+    <ol class="mixer__steps" aria-label="Cómo funciona">
+      <li><strong>1.</strong> Pegá la lista del grupo.</li>
+      <li><strong>2.</strong> Se mezclan parejos solos.</li>
+      <li><strong>3.</strong> Compartí por WhatsApp o copiá.</li>
+    </ol>
+
+    <ul class="mixer__formats" aria-label="Formatos soportados">
+      <li>5v5</li>
+      <li>6v6</li>
+      <li>7v7</li>
+      <li>8v8</li>
+      <li>9v9</li>
+      <li>11v11</li>
+    </ul>
+
     <div class="mixer__form">
       <label class="mixer__form-label" for="paste-input">
         Pegá la lista del grupo o escribí los nombres
@@ -78,6 +93,14 @@
       Compartir en WhatsApp
     </button>
     <div class="mixer__actions-row">
+      <button class="btn btn--soft" type="button" id="copy-button" hidden>
+        Copiar equipos
+      </button>
+      <button class="btn btn--soft" type="button" id="download-button" hidden>
+        Descargar imagen
+      </button>
+    </div>
+    <div class="mixer__actions-row">
       <button class="btn btn--ghost" type="button" id="reshuffle-button" hidden>
         Mezclar de nuevo
       </button>
@@ -128,6 +151,8 @@
   const pitchEmpty = document.querySelector<HTMLParagraphElement>("#pitch-empty")!;
   const pitchBadge = document.querySelector<HTMLSpanElement>("#pitch-badge")!;
   const shareButton = document.querySelector<HTMLButtonElement>("#share-button")!;
+  const copyButton = document.querySelector<HTMLButtonElement>("#copy-button")!;
+  const downloadButton = document.querySelector<HTMLButtonElement>("#download-button")!;
   const reshuffleButton = document.querySelector<HTMLButtonElement>("#reshuffle-button")!;
   const resetButton = document.querySelector<HTMLButtonElement>("#reset-button")!;
   const actions = document.querySelector<HTMLDivElement>("#mixer-actions")!;
@@ -476,11 +501,13 @@
     teamsCount.hidden = players.length === 0 || teams === null;
 
     shareButton.hidden = teams === null;
+    copyButton.hidden = teams === null;
+    downloadButton.hidden = teams === null;
     reshuffleButton.hidden = teams === null;
     resetButton.hidden = players.length === 0;
     // The row holds the two secondary buttons: hide it when both are gone.
     actionsRow.hidden = reshuffleButton.hidden && resetButton.hidden;
-    actions.hidden = shareButton.hidden && actionsRow.hidden;
+    actions.hidden = shareButton.hidden && copyButton.hidden && downloadButton.hidden && actionsRow.hidden;
   }
 
   /** Fisher–Yates: uniform shuffle, unlike the biased `sort(() => Math.random() - 0.5)`. */
@@ -601,8 +628,22 @@
   });
 
   // Clicking a button must not blur the field (that would commit a half-typed name).
-  for (const button of [shareButton, reshuffleButton, resetButton]) {
+  for (const button of [shareButton, copyButton, downloadButton, reshuffleButton, resetButton]) {
     button.addEventListener("mousedown", (event) => event.preventDefault());
+  }
+
+  function teamsText(): string {
+    if (teams === null) return "";
+    const [teamOne, teamTwo] = teams;
+    return [
+      "MiXteam — Equipos mezclados",
+      "",
+      `Equipo 1 (${teamOne.length})`,
+      ...teamOne.map((name, i) => `${i + 1}. ${name}`),
+      "",
+      `Equipo 2 (${teamTwo.length})`,
+      ...teamTwo.map((name, i) => `${i + 1}. ${name}`),
+    ].join("\n");
   }
 
   reshuffleButton.addEventListener("click", () => {
@@ -616,13 +657,170 @@
 
   shareButton.addEventListener("click", () => {
     if (teams === null) return;
+    window.open(`https://wa.me/?text=${encodeURIComponent(teamsText())}`, "_blank", "noopener");
+  });
+
+  let copyResetTimer: number | undefined;
+  copyButton.addEventListener("click", async () => {
+    if (teams === null) return;
+    const text = teamsText();
+    let ok = false;
+    try {
+      await navigator.clipboard.writeText(text);
+      ok = true;
+    } catch {
+      // Clipboard API can fail without focus/permission: fall back to the
+      // legacy textarea + execCommand path, still in a user gesture.
+      const probe = document.createElement("textarea");
+      probe.value = text;
+      probe.setAttribute("readonly", "");
+      probe.style.position = "fixed";
+      probe.style.opacity = "0";
+      document.body.appendChild(probe);
+      probe.select();
+      try {
+        ok = document.execCommand("copy");
+      } catch {
+        ok = false;
+      }
+      probe.remove();
+    }
+    copyButton.textContent = ok ? "¡Copiado!" : "No se pudo copiar";
+    window.clearTimeout(copyResetTimer);
+    copyResetTimer = window.setTimeout(() => {
+      copyButton.textContent = "Copiar equipos";
+    }, 1800);
+  });
+
+  function downloadPitchImage(): void {
+    if (teams === null) return;
     const [teamOne, teamTwo] = teams;
-    const text = [
-      "MiXteam — Tus equipos mezclados!",
-      `Equipo 1 (${teamOne.length}): ${teamOne.join(", ")}`,
-      `Equipo 2 (${teamTwo.length}): ${teamTwo.join(", ")}`,
-    ].join("\n");
-    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank", "noopener");
+
+    const W = 1600;
+    const H = Math.round(W / 2.05);
+    const canvas = document.createElement("canvas");
+    canvas.width = W;
+    canvas.height = H;
+    const ctx = canvas.getContext("2d")!;
+    if (!ctx) return;
+
+    // Background: same greens as the CSS variables.
+    const grad = ctx.createLinearGradient(0, 0, 0, H);
+    grad.addColorStop(0, "#1a6b48");
+    grad.addColorStop(1, "#0e3f2c");
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, W, H);
+
+    // Pitch lines (viewBox 1088x440 mapped onto the canvas).
+    const sx = W / 1088;
+    const sy = H / 440;
+    ctx.strokeStyle = "#4faa80";
+    ctx.lineWidth = 2.5;
+    const rect = (x: number, y: number, w: number, h: number, r = 0) => {
+      ctx.beginPath();
+      ctx.roundRect(x * sx, y * sy, w * sx, h * sy, r * sx);
+      ctx.stroke();
+    };
+    rect(16, 16, 1056, 408, 10);
+    ctx.beginPath();
+    ctx.moveTo(544 * sx, 16 * sy);
+    ctx.lineTo(544 * sx, 424 * sy);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(544 * sx, 220 * sy, 72 * sx, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.fillStyle = "#4faa80";
+    ctx.beginPath();
+    ctx.arc(544 * sx, 220 * sy, 4 * sx, 0, Math.PI * 2);
+    ctx.fill();
+    rect(16, 120, 112, 200);
+    rect(960, 120, 112, 200);
+    rect(16, 168, 46, 104);
+    rect(1026, 168, 46, 104);
+
+    // Half labels.
+    ctx.font = "800 26px Inter, system-ui, sans-serif";
+    ctx.textAlign = "left";
+    ctx.fillStyle = "#d9ff8c";
+    ctx.fillText("EQUIPO 1", 40, 52);
+    ctx.textAlign = "right";
+    ctx.fillStyle = "#eaf6ef";
+    ctx.fillText("EQUIPO 2", W - 40, 52);
+
+    // Center count pill.
+    const pill = `${teamOne.length} y ${teamTwo.length}`;
+    ctx.font = "800 24px Inter, system-ui, sans-serif";
+    const pillW = ctx.measureText(pill).width + 44;
+    const pillX = W / 2 - pillW / 2;
+    ctx.fillStyle = "rgba(8,18,14,0.85)";
+    ctx.beginPath();
+    ctx.roundRect(pillX, 28, pillW, 44, 22);
+    ctx.fill();
+    ctx.strokeStyle = "rgba(182,240,74,0.5)";
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.textAlign = "center";
+    ctx.fillStyle = "#d9ff8c";
+    ctx.fillText(pill, W / 2, 58);
+
+    // Tokens: one pill per player, same positions as the DOM board.
+    const drawTeam = (names: string[], mirror: boolean, colors: string) => {
+      const points = teamPositions(names.length);
+      names.forEach((name, i) => {
+        const p = points[i];
+        const fx = mirror ? 1 - p.x : p.x;
+        const fy = mirror ? 1 - p.y : p.y;
+        const isKeeper = p.x === KEEPER_X;
+        const cx = fx * W;
+        const cy = fy * H;
+        ctx.font = "700 22px Inter, system-ui, sans-serif";
+        const label = name.length > 22 ? `${name.slice(0, 21)}…` : name;
+        const textW = ctx.measureText(label).width;
+        const padX = 16;
+        const w = textW + padX * 2;
+        const h = 40;
+        const x = isKeeper ? (mirror ? cx - w : cx) : cx - w / 2;
+        const y = cy - h / 2;
+        ctx.fillStyle = colors;
+        ctx.beginPath();
+        ctx.roundRect(x, y, w, h, 20);
+        ctx.fill();
+        ctx.fillStyle = colors === "#b6f04a" ? "#14260a" : "#14260a";
+        ctx.textAlign = "left";
+        ctx.fillText(label, x + padX, y + h / 2 + 7);
+      });
+    };
+    drawTeam(teamOne, false, "#b6f04a");
+    drawTeam(teamTwo, true, "#eaf6ef");
+
+    // Footer brand.
+    ctx.font = "600 24px Inter, system-ui, sans-serif";
+    ctx.textAlign = "right";
+    ctx.fillStyle = "rgba(234,246,239,0.85)";
+    ctx.fillText("MiXteam", W - 36, H - 26);
+
+    canvas.toBlob((blob) => {
+      if (!blob) return;
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `mixteam-${teamOne.length}v${teamTwo.length}.png`;
+      a.click();
+      window.setTimeout(() => URL.revokeObjectURL(url), 4000);
+    }, "image/png");
+  }
+
+  downloadButton.addEventListener("click", () => {
+    if (teams === null) return;
+    downloadButton.textContent = "Generando…";
+    // Next tick so the label paints before the heavy canvas work blocks.
+    window.setTimeout(() => {
+      try {
+        downloadPitchImage();
+      } finally {
+        downloadButton.textContent = "Descargar imagen";
+      }
+    }, 0);
   });
 
   resetButton.addEventListener("click", () => {
@@ -663,6 +861,53 @@
     max-width: 44ch;
     color: var(--color-text-muted);
     font-size: var(--text-md);
+  }
+
+  /* Three-line explanation: what to do, in order, without marketing copy. */
+  .mixer__steps {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.4rem 1.1rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    font-size: var(--text-sm);
+    color: var(--color-text-soft);
+  }
+
+  .mixer__steps li {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 0.35rem;
+    white-space: nowrap;
+  }
+
+  .mixer__steps strong {
+    color: var(--color-accent-soft);
+    font-weight: 800;
+  }
+
+  /* Supported formats, shown as quiet chips under the steps. */
+  .mixer__formats {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.4rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .mixer__formats li {
+    padding: 0.2rem 0.65rem;
+    border: 1px solid var(--color-border);
+    border-radius: 999px;
+    background: var(--color-surface-soft);
+    color: var(--color-text-muted);
+    font-size: var(--text-xs);
+    font-weight: 700;
+    letter-spacing: 0.04em;
   }
 
   .mixer__form {
