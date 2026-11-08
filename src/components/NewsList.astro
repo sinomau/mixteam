@@ -44,11 +44,12 @@
         .map(
           (item: Record<string, unknown>) => `
           <article class="news__card">
-            ${
-              item.image
-                ? `<img class="news__img" src="${esc(item.image)}" alt="" loading="lazy">`
-                : ""
-            }
+            ${item.image
+              ? `<div class="news__media">
+                  <img class="news__img" src="${esc(item.image)}" alt="${esc(item.caption || item.title)}" loading="lazy">
+                  ${item.caption ? `<p class="news__caption">${esc(item.caption)}</p>` : ""}
+                </div>`
+              : ""}
             <time class="news__date" datetime="${esc(item.published)}">${esc(
               new Date(String(item.published)).toLocaleDateString("es-AR", {
                 day: "2-digit",
@@ -107,6 +108,13 @@
     width: 100%;
     height: 180px;
     object-fit: cover;
+  }
+
+  .news__caption {
+    padding: var(--space-1) var(--space-3) var(--space-2);
+    color: var(--color-text-muted);
+    font-size: var(--text-xs);
+    line-height: 1.4;
   }
 
   .news__card h3,
