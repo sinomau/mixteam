@@ -190,8 +190,16 @@ const { heading, logo, logoAlt, endpoint } = Astro.props;
     }
     return fixtures
       .map(
-        (f) => `
-          <article class="fb__match${String(f.state) === "in" ? " fb__match--live" : ""}">
+        (f) => {
+          // Cards with an ESPN event id link to the internal match page;
+          // matches without one (edge cases) fall back to a plain article.
+          const id = String(f.id ?? "");
+          const open = id
+            ? `<a class="fb__match${String(f.state) === "in" ? " fb__match--live" : ""}" href="/match/${encodeURIComponent(id)}/">`
+            : `<article class="fb__match${String(f.state) === "in" ? " fb__match--live" : ""}">`;
+          const close = id ? "</a>" : "</article>";
+          return `
+          ${open}
             <header class="fb__match-head">
               <span>${esc(f.round)}</span>
               <span class="fb__status${String(f.state) === "in" ? " fb__status--live" : ""}">${statusLabel(String(f.status))}${String(f.state) === "in" && f.elapsed ? ` · ${esc(f.elapsed)}` : ""}</span>
@@ -205,8 +213,9 @@ const { heading, logo, logoAlt, endpoint } = Astro.props;
               <span>${fmtDate(String(f.dateUtc))}</span>
               ${f.venue ? `<span>${esc(f.venue)}</span>` : ""}
             </footer>
-          </article>
-        `
+          ${close}
+        `;
+        }
       )
       .join("");
   }
@@ -417,6 +426,18 @@ const { heading, logo, logoAlt, endpoint } = Astro.props;
     padding: var(--space-3) var(--space-4);
     margin-bottom: var(--space-2);
     box-shadow: 0 6px 18px rgb(2 10 6 / 35%);
+  }
+
+  /* Anchor cards are full-card links: keep the card look, add a hover cue */
+  a.fb__match {
+    text-decoration: none;
+    color: inherit;
+    transition: border-color var(--ease), transform var(--ease);
+  }
+
+  a.fb__match:hover {
+    border-color: var(--color-accent);
+    transform: translateY(-1px);
   }
 
   .fb__match--live {

@@ -89,6 +89,8 @@ function mapEvent(event: any, leagueName: string) {
   const status = event.status?.type ?? {};
 
   return {
+    // ESPN event id — lets the client link the card to /match/<id>/
+    id: String(event.id ?? ""),
     round: comp.notes?.[0]?.headline ?? leagueName,
     league: leagueName,
     // displayClock arrives as '78''-style (minutes already formatted).
