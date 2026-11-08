@@ -26,27 +26,32 @@ const cache = new Map<string, { data: unknown; at: number }>();
  * The all-leagues feed carries every game on Earth, and most of them are
  * college soccer or third-tier leagues nobody here follows. The ticker is
  * for the competitions this audience actually watches.
+ *
+ * The `priority` orders the ticker: lower comes first.
  */
-const TICKER_LEAGUES: Record<string, { name: string; featured?: boolean }> = {
+const TICKER_LEAGUES: Record<string, { name: string; priority: number }> = {
   // The competitions of this site.
-  "745": { name: "Liga Profesional", featured: true },
-  "783": { name: "Copa Libertadores", featured: true },
-  "5454": { name: "Copa Sudamericana", featured: true },
+  "745": { name: "Liga Profesional", priority: 0 },
+  "783": { name: "Copa Libertadores", priority: 0 },
+  "5454": { name: "Copa Sudamericana", priority: 0 },
+  // The rest of the Argentine football.
+  "8107": { name: "Copa Argentina", priority: 1 },
+  "3904": { name: "Primera B", priority: 1 },
   // Europe.
-  "775": { name: "Champions League" },
-  "776": { name: "Europa League" },
-  "20296": { name: "Conference League" },
-  "700": { name: "Premier League" },
-  "740": { name: "LaLiga" },
-  "730": { name: "Serie A" },
-  "720": { name: "Bundesliga" },
-  "710": { name: "Ligue 1" },
-  "725": { name: "Eredivisie" },
-  "715": { name: "Liga Portugal" },
+  "775": { name: "Champions League", priority: 2 },
+  "776": { name: "Europa League", priority: 2 },
+  "20296": { name: "Conference League", priority: 2 },
+  "700": { name: "Premier League", priority: 2 },
+  "740": { name: "LaLiga", priority: 2 },
+  "730": { name: "Serie A", priority: 2 },
+  "720": { name: "Bundesliga", priority: 2 },
+  "710": { name: "Ligue 1", priority: 2 },
+  "725": { name: "Eredivisie", priority: 2 },
+  "715": { name: "Liga Portugal", priority: 2 },
   // America.
-  "770": { name: "MLS" },
-  "760": { name: "Liga MX" },
-  "630": { name: "Brasileirão" },
+  "770": { name: "MLS", priority: 3 },
+  "760": { name: "Liga MX", priority: 3 },
+  "630": { name: "Brasileirão", priority: 3 },
 };
 
 function json(data: unknown, status = 200) {
@@ -128,7 +133,7 @@ function summaryLink(event: any): string {
   return "";
 }
 
-function mapEvent(event: any, league: { name: string; featured?: boolean }) {
+function mapEvent(event: any, league: { name: string; priority: number }) {
   const comp = event.competitions?.[0] ?? {};
   const competitors: Competitor[] = comp.competitors ?? [];
   const home = competitors.find((c) => c.homeAway === "home");
@@ -137,7 +142,7 @@ function mapEvent(event: any, league: { name: string; featured?: boolean }) {
   return {
     id: String(event.id ?? ""),
     league: league.name,
-    featured: league.featured === true,
+    priority: league.priority,
     clock: clockOf(event),
     home: shortName(home),
     away: shortName(away),
@@ -163,9 +168,11 @@ export const GET: APIRoute = async () => {
       .filter((match): match is NonNullable<typeof match> => match !== null)
       .filter((match) => match.home !== "" && match.away !== "");
 
-    // The competitions of this site lead the ticker, the rest follow by kickoff.
+    // The competitions of this site lead the ticker, then the rest of the
+    // Argentine football, Europe and America. Inside a group, the match
+    // that kicked off first comes first.
     matches.sort((a, b) => {
-      if (a.featured !== b.featured) return a.featured ? -1 : 1;
+      if (a.priority !== b.priority) return a.priority - b.priority;
       return new Date(a.dateUtc).getTime() - new Date(b.dateUtc).getTime();
     });
 
