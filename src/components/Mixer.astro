@@ -872,6 +872,27 @@
     return true;
   }
 
+  // On devices that can share files, the image button opens the system
+  // sheet where WhatsApp (and every other app) appears: the user picks the
+  // destination there. On desktop there is no sheet, so it downloads.
+  // wa.me cannot carry an image, so that path is what sends the picture.
+  const canShareImage = (() => {
+    try {
+      const nav = navigator as Navigator & {
+        canShare?: (data: { files?: File[] }) => boolean;
+        share?: unknown;
+      };
+      if (!nav.canShare || !nav.share) return false;
+      const probe = new File([""], "mixteam.png", { type: "image/png" });
+      return nav.canShare({ files: [probe] });
+    } catch {
+      return false;
+    }
+  })();
+
+  const downloadLabel = canShareImage ? "Compartir imagen" : "Descargar imagen";
+  downloadButton.textContent = downloadLabel;
+
   downloadButton.addEventListener("click", () => {
     if (teams === null) return;
     const [teamOne, teamTwo] = teams;
@@ -888,7 +909,7 @@
         downloadButton.textContent = "No se pudo generar";
       }
       window.setTimeout(() => {
-        downloadButton.textContent = "Descargar imagen";
+        downloadButton.textContent = downloadLabel;
       }, 1800);
     }, 0);
   });
