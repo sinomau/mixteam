@@ -344,6 +344,47 @@ function esc(value: unknown): string {
   );
 }
 
+/** Which side of the timeline an event belongs to: home is the fallback. */
+function eventSide(detail: MatchDetail, team: string): "home" | "away" {
+  const needle = team.trim().toLowerCase();
+  if (needle === "") return "home";
+
+  const matches = (side: MatchSide) =>
+    [side.abbreviation, side.name].some(
+      (value) => value.trim().toLowerCase() === needle
+    );
+
+  if (matches(detail.home)) return "home";
+  if (matches(detail.away)) return "away";
+  return "home";
+}
+
+/** Text-node token such as `45+3'`: the minute mark stays literal. */
+function clockHtml(raw: string): string {
+  // esc() turns the apostrophe into &#39;; inside text it is not required.
+  return esc(raw).replace(/&#39;/g, "'");
+}
+
+/**
+ * Secondary line of an event: the assist for goals, plus any note the feed
+ * attached ("en contra", "pen."). Empty when there is nothing to say.
+ */
+function eventSub(event: MatchEvent, assists: string[]): string {
+  const parts: string[] = [];
+  if (event.kind === "goal" && assists.length > 0) {
+    parts.push(`asistencia de ${assists.join(", ")}`);
+  }
+  if (event.note) {
+    parts.push(
+      ...event.note
+        .split(",")
+        .map((part) => part.trim())
+        .filter(Boolean)
+    );
+  }
+  return parts.join(" · ");
+}
+
 /** Summary of goals and cards: the section a match page is judged on. */
 export function eventsHtml(detail: MatchDetail): string {
   if (detail.events.length === 0) {
@@ -360,22 +401,16 @@ export function eventsHtml(detail: MatchDetail): string {
 
   const items = detail.events
     .map((event) => {
-      const [scorer, ...rest] = event.players;
-      const assist =
-        event.kind === "goal" && rest.length > 0
-          ? `<span class="mx__event-assist">asistencia de ${esc(rest.join(", "))}</span>`
-          : "";
+      const [player, ...assists] = event.players;
+      const side = eventSide(detail, event.team);
+      const sub = eventSub(event, assists);
       return `
-        <li class="mx__event">
-          <span class="mx__event-clock">${esc(event.clock)}</span>
+        <li class="mx__event" data-side="${side}" data-kind="${event.kind}">
+          <span class="mx__event-clock">${clockHtml(event.clock)}</span>
           <span class="mx__event-icon" aria-hidden="true">${icons[event.kind]}</span>
-          <span class="mx__event-body">
-            <span class="mx__event-player">${esc(scorer || event.team)}</span>
-            ${assist}
-            <span class="mx__event-team">${esc(event.team)}${
-              event.note ? ` · ${esc(event.note)}` : ""
-            }</span>
-          </span>
+          <span class="mx__event-player">${esc(player || event.team)}</span>${
+            sub ? `\n          <span class="mx__event-sub">${esc(sub)}</span>` : ""
+          }
         </li>`;
     })
     .join("");
@@ -383,7 +418,7 @@ export function eventsHtml(detail: MatchDetail): string {
   return `<ol class="mx__events">${items}</ol>`;
 }
 
-/** Paired home/away stats with a bar for the home share. */
+/** Paired home/away stats, each row a two-sided bar. */
 export function statsHtml(detail: MatchDetail): string {
   if (detail.stats.length === 0) {
     return `<p class="mx__empty">Las estadísticas aparecen cuando arranca el partido.</p>`;
@@ -392,27 +427,28 @@ export function statsHtml(detail: MatchDetail): string {
   const home = esc(detail.home.abbreviation || detail.home.name);
   const away = esc(detail.away.abbreviation || detail.away.name);
   const rows = detail.stats
-    .map(
-      (stat) => `
+    .map((stat) => {
+      // Round the home share once, then derive the away share from it, so the
+      // two widths can never add up to more (or less) than 100%.
+      const homePct = Math.min(100, Math.max(0, Math.round(stat.homeShare * 100)));
+      const awayPct = 100 - homePct;
+      return `
       <div class="mx__stat">
-        <span class="mx__stat-value">${esc(stat.home)}</span>
-        <span class="mx__stat-label">
-          <span>${esc(stat.label)}</span>
-          <span class="mx__stat-bar" aria-hidden="true"><span class="mx__stat-bar-fill" style="width:${Math.round(
-            stat.homeShare * 100
-          )}%"></span></span>
+        <span class="mx__stat-value mx__stat-value--home">${esc(stat.home)}</span>
+        <span class="mx__stat-info">
+          <span class="mx__stat-label">${esc(stat.label)}</span>
+          <span class="mx__stat-bar" aria-hidden="true"><span class="mx__stat-bar-home" style="width:${homePct}%"></span><span class="mx__stat-bar-away" style="width:${awayPct}%"></span></span>
         </span>
-        <span class="mx__stat-value">${esc(stat.away)}</span>
-      </div>`
-    )
+        <span class="mx__stat-value mx__stat-value--away">${esc(stat.away)}</span>
+      </div>`;
+    })
     .join("");
 
   return `
     <div class="mx__stats">
       <div class="mx__stat-head">
-        <span>${home}</span>
-        <span class="visually-hidden">Estadística</span>
-        <span>${away}</span>
+        <span class="mx__stat-head-home">${home}</span>
+        <span class="mx__stat-head-away">${away}</span>
       </div>
       ${rows}
     </div>`;
