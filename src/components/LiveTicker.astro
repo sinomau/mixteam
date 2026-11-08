@@ -1,0 +1,275 @@
+---
+// Live matches ticker: a single line above everything, scrolling the games
+// that are being played right now with their score and the minute.
+//
+// Data comes from the /api/live server proxy — no API keys reach the browser.
+---
+
+<div
+  class="live-ticker"
+  id="live-ticker"
+  role="region"
+  aria-label="Partidos en vivo"
+  hidden
+>
+  <span class="live-ticker__label">
+    <span class="live-ticker__dot" aria-hidden="true"></span>
+    En vivo
+  </span>
+
+  <div class="live-ticker__viewport" id="live-ticker-viewport">
+    <div class="live-ticker__track" id="live-ticker-track"></div>
+  </div>
+</div>
+
+<script>
+  const ticker = document.querySelector<HTMLElement>("#live-ticker")!;
+  const track = document.querySelector<HTMLElement>("#live-ticker-track")!;
+  const viewport = document.querySelector<HTMLElement>("#live-ticker-viewport")!;
+
+  const POLL_MS = 60 * 1000;
+  /** Pixels per second the marquee travels. */
+  const SPEED = 40;
+
+  const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+
+  const ESCAPES: Record<string, string> = {
+    "38": "&#38;",
+    "60": "&#60;",
+    "62": "&#62;",
+    "34": "&#34;",
+    "39": "'",
+  };
+
+  function esc(value: unknown): string {
+    return String(value ?? "").replace(/[&<>"']/g, (ch) => ESCAPES[ch.charCodeAt(0).toString()]!);
+  }
+
+  function matchMarkup(match: Record<string, unknown>): string {
+    const home = esc(match.home);
+    const away = esc(match.away);
+    const homeGoals = esc(match.homeGoals);
+    const awayGoals = esc(match.awayGoals);
+    const clock = esc(match.clock);
+    const league = esc(match.league);
+    const url = String(match.url ?? "");
+
+    const body = `
+      <span class="live-ticker__league">${league}</span>
+      <span class="live-ticker__team">${home}</span>
+      <span class="live-ticker__score">${homeGoals}</span>
+      <span class="live-ticker__dash" aria-hidden="true">–</span>
+      <span class="live-ticker__score">${awayGoals}</span>
+      <span class="live-ticker__team">${away}</span>
+      <span class="live-ticker__clock">${clock}</span>
+    `;
+
+    // The whole match is one link: the score and the minute travel together.
+    return url
+      ? `<a class="live-ticker__match" href="${esc(url)}" target="_blank" rel="noopener">${body}</a>`
+      : `<span class="live-ticker__match">${body}</span>`;
+  }
+
+  function render(matches: Array<Record<string, unknown>>) {
+    if (matches.length === 0) {
+      ticker.hidden = true;
+      track.replaceChildren();
+      return;
+    }
+
+    const group = matches.map(matchMarkup).join("");
+
+    // The group is duplicated so the marquee can loop without a visible seam.
+    // The copy is hidden from assistive tech, so the matches are not read
+    // twice. With reduced motion the list is scrollable by hand instead.
+    track.innerHTML = reducedMotion.matches
+      ? `<div class="live-ticker__group">${group}</div>`
+      : `<div class="live-ticker__group">${group}</div>` +
+        `<div class="live-ticker__group" aria-hidden="true">${group}</div>`;
+    ticker.hidden = false;
+
+    if (reducedMotion.matches) {
+      track.style.removeProperty("--ticker-duration");
+      return;
+    }
+
+    // The animation has to travel exactly one copy of the group.
+    const groupEl = track.querySelector<HTMLElement>(".live-ticker__group")!;
+    const duration = Math.max(30, Math.round(groupEl.scrollWidth / SPEED));
+    track.style.setProperty("--ticker-duration", `${duration}s`);
+  }
+
+  async function load() {
+    try {
+      const res = await fetch("/api/live");
+      if (!res.ok) return;
+      const payload = await res.json();
+      render(Array.isArray(payload.matches) ? payload.matches : []);
+    } catch {
+      // The ticker is decoration: if it fails, it simply stays hidden.
+    }
+  }
+
+  load();
+  window.setInterval(load, POLL_MS);
+
+  // Pause the marquee while the pointer is over it, so a match can be read.
+  viewport.addEventListener("mouseenter", () => {
+    track.style.animationPlayState = "paused";
+  });
+  viewport.addEventListener("mouseleave", () => {
+    track.style.animationPlayState = "";
+  });
+</script>
+
+<style is:global>
+  .live-ticker {
+    display: flex;
+    align-items: stretch;
+    width: 100%;
+    overflow: hidden;
+    background: #0b1610;
+    border-bottom: 1px solid var(--color-border);
+    font-size: var(--text-xs);
+  }
+
+  /* The flex display would otherwise win over the browser default for
+     the `hidden` attribute, and the empty ticker would take up space. */
+  .live-ticker[hidden] {
+    display: none;
+  }
+
+  .live-ticker__label {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    flex-shrink: 0;
+    padding: 0.45rem 0.7rem;
+    background: rgb(226 89 106 / 14%);
+    color: #f6bcc4;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+
+  .live-ticker__dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--color-danger);
+    box-shadow: 0 0 0 0 rgb(226 89 106 / 60%);
+    animation: live-ticker-pulse 2s ease-out infinite;
+  }
+
+  @keyframes live-ticker-pulse {
+    0% {
+      box-shadow: 0 0 0 0 rgb(226 89 106 / 55%);
+    }
+    70% {
+      box-shadow: 0 0 0 7px rgb(226 89 106 / 0%);
+    }
+    100% {
+      box-shadow: 0 0 0 0 rgb(226 89 106 / 0%);
+    }
+  }
+
+  .live-ticker__viewport {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+  }
+
+  .live-ticker__track {
+    display: flex;
+    align-items: center;
+    width: max-content;
+    animation: live-ticker-scroll var(--ticker-duration, 40s) linear infinite;
+  }
+
+  .live-ticker__group {
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+  }
+
+  .live-ticker:hover .live-ticker__track {
+    animation-play-state: paused;
+  }
+
+  @keyframes live-ticker-scroll {
+    from {
+      transform: translateX(0);
+    }
+    to {
+      transform: translateX(-50%);
+    }
+  }
+
+  .live-ticker__match {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.45rem 0.9rem;
+    color: var(--color-text-soft);
+    text-decoration: none;
+    white-space: nowrap;
+    border-right: 1px solid rgb(37 57 45 / 90%);
+  }
+
+  .live-ticker__match:hover {
+    background: rgb(182 240 74 / 8%);
+    color: var(--color-text);
+    text-decoration: none;
+  }
+
+  .live-ticker__league {
+    color: var(--color-text-muted);
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    font-size: 0.6875rem;
+  }
+
+  .live-ticker__team {
+    font-weight: 600;
+  }
+
+  .live-ticker__score {
+    color: var(--color-text);
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .live-ticker__dash {
+    color: var(--color-text-muted);
+  }
+
+  .live-ticker__clock {
+    color: var(--color-accent);
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* No motion: the matches are simply scrollable by hand. */
+  @media (prefers-reduced-motion: reduce) {
+    .live-ticker__track {
+      animation: none;
+    }
+
+    .live-ticker__viewport {
+      overflow-x: auto;
+      scrollbar-width: none;
+    }
+
+    .live-ticker__viewport::-webkit-scrollbar {
+      display: none;
+    }
+
+    .live-ticker__dot {
+      animation: none;
+    }
+  }
+</style>
