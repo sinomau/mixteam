@@ -188,8 +188,8 @@ main.container {
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: var(--space-2) var(--space-3);
-  padding-block: var(--space-3);
+  gap: var(--space-1) var(--space-3);
+  padding-block: var(--space-2);
 }
 
 .brand {
@@ -204,7 +204,8 @@ main.container {
 }
 
 .site-nav {
-  /* Mobile first: the nav is a scroll strip, never a clipped row. */
+  /* Mobile first: five short links wrap into two centered rows, so
+     everything is visible without hunting through a scroll strip. */
   order: 3;
   position: relative;
   width: 100%;
@@ -213,63 +214,30 @@ main.container {
 
 .site-nav ul {
   display: flex;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
+  justify-content: center;
   gap: 2px;
   margin: 0;
-  padding: 0 0 2px;
+  padding: 0;
   list-style: none;
-  overflow-x: auto;
-  overscroll-behavior-x: contain;
-  scrollbar-width: none;
-  scroll-snap-type: x proximity;
-  -webkit-overflow-scrolling: touch;
 }
 
-.site-nav ul::-webkit-scrollbar {
+/* Short labels on mobile, full names on desktop. The link carries the
+   full name in its aria-label; the visible span is decorative. */
+.site-nav__label-full {
   display: none;
-}
-
-/* The strip has no visible scrollbar, so the edges fade to say that there
-   is more to the side. The script adds these classes when it can scroll. */
-.site-nav::before,
-.site-nav::after {
-  content: "";
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  width: 2.25rem;
-  z-index: 1;
-  pointer-events: none;
-  opacity: 0;
-  transition: opacity var(--ease);
-}
-
-.site-nav::before {
-  left: 0;
-  background: linear-gradient(to right, var(--color-bg), transparent);
-}
-
-.site-nav::after {
-  right: 0;
-  background: linear-gradient(to left, var(--color-bg), transparent);
-}
-
-.site-nav.has-overflow-start::before,
-.site-nav.has-overflow-end::after {
-  opacity: 1;
 }
 
 .site-nav a {
   display: inline-flex;
   align-items: center;
   min-height: 44px;
-  padding: var(--space-2) 0.75rem;
+  padding: var(--space-2) 0.65rem;
   border-radius: var(--radius-md);
   color: #dcebe2;
   font-size: var(--text-sm);
   font-weight: 500;
   white-space: nowrap;
-  scroll-snap-align: center;
   transition: background-color var(--ease), color var(--ease);
 }
 
@@ -309,12 +277,13 @@ main.container {
     justify-content: flex-end;
     gap: var(--space-1) var(--space-2);
     padding: 0;
-    overflow-x: visible;
-    scroll-snap-type: none;
   }
 
-  .site-nav::before,
-  .site-nav::after {
+  .site-nav__label-full {
+    display: inline;
+  }
+
+  .site-nav__label-short {
     display: none;
   }
 

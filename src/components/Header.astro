@@ -2,11 +2,11 @@
 import WeatherChip from "./WeatherChip.astro";
 
 const links = [
-  { href: "/", label: "Inicio" },
-  { href: "/football/", label: "Liga Profesional" },
-  { href: "/libertadores/", label: "Copa Libertadores" },
-  { href: "/sudamericana/", label: "Copa Sudamericana" },
-  { href: "/news/", label: "Noticias" },
+  { href: "/", label: "Inicio", short: "Inicio" },
+  { href: "/football/", label: "Liga Profesional", short: "Liga Pro" },
+  { href: "/libertadores/", label: "Copa Libertadores", short: "Libertadores" },
+  { href: "/sudamericana/", label: "Copa Sudamericana", short: "Sudamericana" },
+  { href: "/news/", label: "Noticias", short: "Noticias" },
 ];
 
 const path = Astro.url.pathname.replace(/\/$/, "") || "/";
@@ -26,9 +26,11 @@ const path = Astro.url.pathname.replace(/\/$/, "") || "/";
               <li>
                 <a
                   href={link.href}
+                  aria-label={link.label}
                   aria-current={path === linkPath ? "page" : undefined}
                 >
-                  {link.label}
+                  <span class="site-nav__label-full" aria-hidden="true">{link.label}</span>
+                  <span class="site-nav__label-short" aria-hidden="true">{link.short}</span>
                 </a>
               </li>
             );
@@ -40,36 +42,3 @@ const path = Astro.url.pathname.replace(/\/$/, "") || "/";
   </div>
 </header>
 
-<script>
-  // On mobile the nav is a scroll strip with no visible scrollbar. Two
-  // things have to be true for it to work: the user has to know that there
-  // is more to the side, and the section they are on has to be visible
-  // without scrolling first.
-  const nav = document.querySelector<HTMLElement>(".site-nav")!;
-  const list = nav.querySelector<HTMLUListElement>("ul")!;
-
-  function updateEdges(): void {
-    const max = list.scrollWidth - list.clientWidth;
-    nav.classList.toggle("has-overflow-start", max > 1 && list.scrollLeft > 1);
-    nav.classList.toggle("has-overflow-end", max > 1 && list.scrollLeft < max - 1);
-  }
-
-  function centerCurrent(): void {
-    const current = list.querySelector<HTMLAnchorElement>('[aria-current="page"]');
-    if (!current) return;
-
-    const navBox = nav.getBoundingClientRect();
-    const linkBox = current.getBoundingClientRect();
-    const delta = linkBox.left - navBox.left - (list.clientWidth - linkBox.width) / 2;
-    if (Math.abs(delta) < 1) return;
-
-    list.scrollLeft += delta;
-    updateEdges();
-  }
-
-  centerCurrent();
-  updateEdges();
-
-  list.addEventListener("scroll", updateEdges, { passive: true });
-  window.addEventListener("resize", updateEdges);
-</script>
