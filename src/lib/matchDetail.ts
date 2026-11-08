@@ -7,8 +7,10 @@
 // innerHTML with the very same markup the server rendered, so the templates
 // exist once, not twice.
 
+// lang=es localizes commentary, league names, leader labels and event type
+// texts; the English feed would mix languages across the page.
 const ESPN_SUMMARY =
-  "https://site.api.espn.com/apis/site/v2/sports/soccer/all/summary?event=";
+  "https://site.api.espn.com/apis/site/v2/sports/soccer/all/summary?lang=es&event=";
 
 /** A live poll every minute must not turn into a request per visitor. */
 const CACHE_TTL_MS = 60 * 1000;
@@ -255,7 +257,7 @@ function headerGoals(keys: any[], home: MatchSide, away: MatchSide): Array<{
   side: "home" | "away" | null;
 }> {
   return keys
-    .filter((event) => /header/i.test(String(event?.type?.text ?? "")))
+    .filter((event) => /header|cabeza/i.test(String(event?.type?.text ?? "")))
     .map((event) => ({
       at: Number(event?.clock?.value ?? 0),
       side: sideFor(
@@ -277,7 +279,8 @@ function eventsOf(
   const headers = headerGoals(keys, home, away);
 
   // Goals live in the competition details; cards and substitutions are not
-  // there, they are in the key events feed with an English type text. Goals
+  // there, they are in the key events feed, whose type text is localized
+  // ("Yellow Card" / "Tarjeta amarilla"), so every match is bilingual. Goals
   // never come from key events, so a header entry only annotates its goal.
   const details = Array.isArray(comp?.details) ? comp.details : [];
   for (const detail of details) {
@@ -309,7 +312,7 @@ function eventsOf(
     const text = String(event?.type?.text ?? "");
     const players = participantsOf(event?.participants);
 
-    if (text === "Substitution") {
+    if (/substitution|sustituci/i.test(text)) {
       if (players.length < 2) continue;
       out.push({
         at: Number(event?.clock?.value ?? 0),
@@ -322,12 +325,12 @@ function eventsOf(
       continue;
     }
 
-    if (!/card/i.test(text)) continue;
+    if (!/card|tarjeta/i.test(text)) continue;
     if (players.length === 0) continue;
     out.push({
       at: Number(event?.clock?.value ?? 0),
       clock: String(event?.clock?.displayValue ?? ""),
-      kind: /red/i.test(text) ? "red" : "yellow",
+      kind: /red|roja/i.test(text) ? "red" : "yellow",
       team: String(event?.team?.abbreviation || event?.team?.displayName || ""),
       players,
       note: "",
@@ -509,8 +512,18 @@ function leadersOf(raw: any, home: MatchSide, away: MatchSide): MatchLeader[] {
   return out;
 }
 
-/** ESPN result codes: W ganó / D empató / L perdió. */
-const FORM_RESULTS: Record<string, string> = { W: "G", D: "E", L: "P" };
+/**
+ * ESPN result codes: the English feed says W/D/L, the Spanish feed already
+ * says G/E/P. Both normalize to the G/E/P the chips render.
+ */
+const FORM_RESULTS: Record<string, string> = {
+  W: "G",
+  D: "E",
+  L: "P",
+  G: "G",
+  E: "E",
+  P: "P",
+};
 
 function formOf(raw: any, home: MatchSide, away: MatchSide): MatchForm {
   const form: MatchForm = { home: "", away: "" };
