@@ -8,10 +8,7 @@
 <section class="mixer" aria-labelledby="mixer-title">
   <div class="mixer__hero">
     <h1 id="mixer-title">Crea tus equipos</h1>
-    <p class="mixer__lead">
-      Armá los equipos para ese fulbito. Pegá la lista y se mezclan solos:
-      equipos parejos de 5, 6, 7, 8, 9 u 11 por lado.
-    </p>
+    <p class="mixer__lead">Pegá la lista y se mezclan solos.</p>
 
     <div class="mixer__form">
       <label class="mixer__form-label" for="paste-input">
@@ -51,12 +48,7 @@
     </div>
   </div>
 
-  <section class="mixer__output" id="mixer-output" aria-labelledby="teams-title">
-    <div class="mixer__section-head">
-      <h2 id="teams-title">Equipos</h2>
-      <span class="mixer__chip" id="teams-count"></span>
-    </div>
-
+  <section class="mixer__output" id="mixer-output" aria-label="Equipos">
     <div class="mixer__pitch" id="pitch">
       <div class="mixer__pitch-lines" aria-hidden="true">
         <svg viewBox="0 0 1088 440" preserveAspectRatio="none">
@@ -72,6 +64,7 @@
       </div>
       <span class="mixer__half-label mixer__half-label--one">Equipo 1</span>
       <span class="mixer__half-label mixer__half-label--two">Equipo 2</span>
+      <span class="mixer__pitch-count" id="teams-count" hidden></span>
       <div class="mixer__tokens" id="tokens" role="list" aria-label="Formación de los equipos"></div>
       <p class="mixer__pitch-empty" id="pitch-empty">
         Agregá jugadores y la cancha se arma sola
@@ -81,15 +74,17 @@
   </section>
 
   <div class="mixer__actions" id="mixer-actions" hidden>
-    <button class="btn btn--ghost" type="button" id="reshuffle-button" hidden>
-      Mezclar de nuevo
-    </button>
     <button class="btn btn--whatsapp" type="button" id="share-button" hidden>
       Compartir en WhatsApp
     </button>
-    <button class="btn btn--ghost" type="button" id="reset-button" hidden>
-      Empezar de nuevo
-    </button>
+    <div class="mixer__actions-row">
+      <button class="btn btn--ghost" type="button" id="reshuffle-button" hidden>
+        Mezclar de nuevo
+      </button>
+      <button class="btn btn--ghost" type="button" id="reset-button" hidden>
+        Reiniciar
+      </button>
+    </div>
   </div>
 </section>
 
@@ -136,6 +131,8 @@
   const reshuffleButton = document.querySelector<HTMLButtonElement>("#reshuffle-button")!;
   const resetButton = document.querySelector<HTMLButtonElement>("#reset-button")!;
   const actions = document.querySelector<HTMLDivElement>("#mixer-actions")!;
+  const actionsRow = document.querySelector<HTMLDivElement>(".mixer__actions-row")!;
+  const pitch = document.querySelector<HTMLDivElement>("#pitch")!;
   const pasteInput = document.querySelector<HTMLTextAreaElement>("#paste-input")!;
   const pasteHint = document.querySelector<HTMLParagraphElement>("#paste-hint")!;
 
@@ -445,7 +442,6 @@
     ];
 
     tokensEl.innerHTML = tokens.join("");
-    teamsCount.hidden = teamOne.length + teamTwo.length === 0;
     teamsCount.textContent = `${teamOne.length} y ${teamTwo.length}`;
   }
 
@@ -476,11 +472,15 @@
 
     pitchEmpty.hidden = players.length > 0;
     pitchBadge.hidden = players.length === 0 || teams !== null;
+    // The counter and the badge share the same spot: only one of them shows.
+    teamsCount.hidden = players.length === 0 || teams === null;
 
     shareButton.hidden = teams === null;
     reshuffleButton.hidden = teams === null;
     resetButton.hidden = players.length === 0;
-    actions.hidden = shareButton.hidden && reshuffleButton.hidden && resetButton.hidden;
+    // The row holds the two secondary buttons: hide it when both are gone.
+    actionsRow.hidden = reshuffleButton.hidden && resetButton.hidden;
+    actions.hidden = shareButton.hidden && actionsRow.hidden;
   }
 
   /** Fisher–Yates: uniform shuffle, unlike the biased `sort(() => Math.random() - 0.5)`. */
@@ -587,7 +587,12 @@
   // after the paste, so commit on the next tick with the final value.
   pasteInput.addEventListener("paste", () => {
     window.setTimeout(() => {
-      if (pasteInput.value.trim() !== "") commitList();
+      if (pasteInput.value.trim() === "") return;
+      commitList();
+      // The board is the payoff of a paste: bring it into view.
+      // Only on paste: while typing, scrolling would fight the caret.
+      const smooth = !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      pitch.scrollIntoView({ behavior: smooth ? "smooth" : "auto", block: "center" });
     }, 0);
   });
 
@@ -730,33 +735,6 @@
     color: var(--color-accent);
   }
 
-  /* ----- Section heads & chips ----- */
-  .mixer__section-head {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: var(--space-3);
-    width: 100%;
-    margin-bottom: var(--space-3);
-  }
-
-  .mixer__section-head h2 {
-    margin: 0;
-    font-size: 1.25rem;
-  }
-
-  .mixer__chip {
-    padding: 0.3rem 0.72rem;
-    border-radius: 999px;
-    border: 1px solid #2c4a3c;
-    background: #1a2e24;
-    color: var(--color-accent);
-    font-size: 0.75rem;
-    font-weight: 800;
-    letter-spacing: 0.02em;
-    white-space: nowrap;
-  }
-
   /* ----- Output ----- */
   .mixer__output {
     display: flex;
@@ -871,6 +849,28 @@
     display: none;
   }
 
+  /* The team split, floating over the board where the eye already is. */
+  .mixer__pitch-count {
+    position: absolute;
+    top: 4%;
+    left: 50%;
+    z-index: 2;
+    transform: translateX(-50%);
+    padding: 0.2rem 0.65rem;
+    border: 1px solid rgb(182 240 74 / 40%);
+    border-radius: 999px;
+    background: rgb(8 18 14 / 72%);
+    color: var(--color-accent-soft);
+    font-size: 0.6875rem;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    white-space: nowrap;
+  }
+
+  .mixer__pitch-count[hidden] {
+    display: none;
+  }
+
   /* Each player is a name tag sitting on the pitch, not an initial. */
   .mixer__token {
     position: absolute;
@@ -919,12 +919,26 @@
   /* ----- Actions ----- */
   .mixer__actions {
     display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: 0.75rem;
+    flex-direction: column;
+    gap: 0.6rem;
+    width: 100%;
   }
 
   .mixer__actions[hidden] {
+    display: none;
+  }
+
+  .mixer__actions > .btn {
+    width: 100%;
+  }
+
+  .mixer__actions-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.6rem;
+  }
+
+  .mixer__actions-row[hidden] {
     display: none;
   }
 
