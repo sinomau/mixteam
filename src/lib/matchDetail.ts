@@ -58,7 +58,6 @@ export interface MatchDetail {
   season: string;
   dateUtc: string;
   venue: string;
-  espnUrl: string;
   status: { state: "pre" | "in" | "post"; label: string; live: boolean };
   home: MatchSide;
   away: MatchSide;
@@ -111,7 +110,6 @@ function mapSummary(id: string, payload: any): MatchDetail | null {
     season: String(header.season?.name ?? ""),
     dateUtc: String(comp.date ?? ""),
     venue: venueText(payload?.gameInfo?.venue),
-    espnUrl: gamecastUrl(id, header.links),
     status: statusOf(state, comp.status),
     home: sideOf(homeC, state),
     away: sideOf(awayC, state),
@@ -186,19 +184,6 @@ function venueText(venue: any): string {
   if (!venue) return "";
   const parts = [venue.fullName, venue.address?.city].filter(Boolean);
   return parts.join(" — ");
-}
-
-function gamecastUrl(id: string, links: any): string {
-  const list = Array.isArray(links) ? links : [];
-  for (const link of list) {
-    const rel = link?.rel;
-    const rels = Array.isArray(rel) ? rel.map(String) : [String(rel ?? "")];
-    const isGamecast = rels.some(
-      (r) => r.includes("summary") || r.includes("live") || r.includes("gamecast")
-    );
-    if (isGamecast && link?.href) return String(link.href);
-  }
-  return `https://www.espn.com/soccer/match/_/gameId/${id}`;
 }
 
 function halvesOf(homeC: any, awayC: any): MatchHalf[] {

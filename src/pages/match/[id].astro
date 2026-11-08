@@ -142,13 +142,6 @@ const description = !detail
           </section>
         )}
 
-        <p class="mx__source">
-          Datos de partidos por{" "}
-          <a href={detail.espnUrl} target="_blank" rel="noopener noreferrer">
-            ESPN ↗
-          </a>
-          {detail.status.live && " · se actualiza solo cada 60 segundos"}
-        </p>
       </article>
     ) : (
       <section class="mx mx--error">
@@ -526,12 +519,6 @@ const description = !detail
     color: var(--color-text-muted);
     font-size: var(--text-xs);
     text-transform: uppercase;
-  }
-
-  .mx__source {
-    color: var(--color-text-muted);
-    font-size: var(--text-xs);
-    text-align: center;
   }
 
   .mx__empty {
