@@ -52,7 +52,7 @@
     const awayGoals = esc(match.awayGoals);
     const clock = esc(match.clock);
     const league = esc(match.league);
-    const url = String(match.url ?? "");
+    const id = String(match.id ?? "");
 
     const body = `
       <span class="live-ticker__league">${league}</span>
@@ -65,8 +65,9 @@
     `;
 
     // The whole match is one link: the score and the minute travel together.
-    return url
-      ? `<a class="live-ticker__match" href="${esc(url)}" target="_blank" rel="noopener">${body}</a>`
+    // It opens our own detail page — the ticker never sends you to ESPN.
+    return id
+      ? `<a class="live-ticker__match" href="/match/${esc(id)}/">${body}</a>`
       : `<span class="live-ticker__match">${body}</span>`;
   }
 

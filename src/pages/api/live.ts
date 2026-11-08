@@ -117,22 +117,6 @@ function clockOf(event: any): string {
   return match[2] ? `${match[1]}+${match[2]}'` : `${match[1]}'`;
 }
 
-/**
- * The link to the match page.
- *
- * ESPN names it `summary` on finished games and `live` on the ones being
- * played, and both point at the gamecast.
- */
-function summaryLink(event: any): string {
-  const links: any[] = event?.links ?? [];
-  for (const rel of ["summary", "live"]) {
-    for (const link of links) {
-      if (String(link?.rel ?? "").startsWith(rel)) return String(link.href ?? "");
-    }
-  }
-  return "";
-}
-
 function mapEvent(event: any, league: { name: string; priority: number }) {
   const comp = event.competitions?.[0] ?? {};
   const competitors: Competitor[] = comp.competitors ?? [];
@@ -148,7 +132,6 @@ function mapEvent(event: any, league: { name: string; priority: number }) {
     away: shortName(away),
     homeGoals: String(home?.score ?? ""),
     awayGoals: String(away?.score ?? ""),
-    url: summaryLink(event),
     dateUtc: String(event.date ?? ""),
   };
 }
