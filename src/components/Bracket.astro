@@ -1,0 +1,668 @@
+---
+// Knockout bracket ("Llaves") for the cup pages: every round of the current
+// edition in order, each tie with its legs, aggregate result, penalties and
+// the team that advanced. Data comes from the /api/bracket server proxy —
+// no API keys ever reach the browser.
+interface Props {
+  competition: string;
+  heading: string;
+}
+
+const { competition, heading } = Astro.props;
+---
+
+<section class="br" data-competition={competition} aria-labelledby="br-heading">
+  <div class="br__section-title">
+    <h2 id="br-heading">{heading}</h2>
+  </div>
+
+  <div class="br__card">
+    <p class="br__eyebrow">Llaves</p>
+    <div class="br__panel" aria-live="polite"></div>
+  </div>
+</section>
+
+<script>
+  const section = document.querySelector<HTMLElement>(".br")!;
+  const competition = section.dataset.competition!;
+  const panel = section.querySelector<HTMLDivElement>(".br__panel")!;
+
+  const CACHE_TTL_MS = 5 * 60 * 1000;
+  const EMPTY_MESSAGE = "Aún no hay rutas definidas para esta etapa del torneo.";
+
+  const cache = new Map<string, { html: string; at: number }>();
+  let inFlight = false;
+
+  function esc(value: unknown): string {
+    return String(value ?? "").replace(/[&<>"']/g, (ch) =>
+      ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;",
+      })[ch]!
+    );
+  }
+
+  function fmtDate(iso: string): string {
+    const date = new Date(iso);
+    if (Number.isNaN(date.getTime())) return "";
+    return date.toLocaleString("es-AR", {
+      day: "2-digit",
+      month: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  }
+
+  function clubFromLeg(leg: Record<string, unknown>, side: "home" | "away") {
+    return {
+      id: String(leg[`${side}Id`] ?? ""),
+      name: String(leg[side] ?? ""),
+      logo: String(leg[`${side}Logo`] ?? ""),
+    };
+  }
+
+  // Scores arrive as strings; an empty pair means the leg has no score yet.
+  function legScore(leg: Record<string, unknown>): string {
+    const home = String(leg.homeScore ?? "").trim();
+    const away = String(leg.awayScore ?? "").trim();
+    if (home === "" || away === "") return "";
+    return `${home}–${away}`;
+  }
+
+  // A completed tie has every leg played. In a pending tie only the last leg
+  // (in date order) is still to come; a live leg counts as being played. The
+  // leg's own status wins when the payload exposes it.
+  function isPlayedLeg(
+    tie: Record<string, unknown>,
+    legs: Array<Record<string, unknown>>,
+    index: number
+  ): boolean {
+    const leg = legs[index];
+    const legStatus = String(leg.status ?? "");
+    if (leg.live === true || legStatus === "live") return true;
+    if (legStatus === "completed") return true;
+    if (legStatus === "pending") return false;
+    if (String(tie.status ?? "") === "completed") return true;
+    return index < legs.length - 1;
+  }
+
+  // Goals per tie side, following each leg's own home/away order so a club
+  // that swapped venues still gets its goals credited on the right side.
+  function goalsBySide(
+    legs: Array<Record<string, unknown>>,
+    awayClubId: string
+  ): { home: number; away: number } {
+    const result = { home: 0, away: 0 };
+    legs.forEach((leg) => {
+      const homeGoals = Number(leg.homeScore);
+      const awayGoals = Number(leg.awayScore);
+      if (!Number.isFinite(homeGoals) || !Number.isFinite(awayGoals)) return;
+      const legHomeId = String(leg.homeId ?? "");
+      if (legHomeId !== "" && legHomeId === awayClubId) {
+        result.home += awayGoals;
+        result.away += homeGoals;
+        return;
+      }
+      result.home += homeGoals;
+      result.away += awayGoals;
+    });
+    return result;
+  }
+
+  // Shoot-out digits, aligned to the same sides as goalsBySide().
+  function pensBySide(
+    legs: Array<Record<string, unknown>>,
+    awayClubId: string
+  ): { home: string; away: string } | null {
+    for (const leg of legs) {
+      const pensHome = String(leg.pensHome ?? "").trim();
+      const pensAway = String(leg.pensAway ?? "").trim();
+      if (pensHome === "" || pensAway === "") continue;
+      const legHomeId = String(leg.homeId ?? "");
+      return legHomeId !== "" && legHomeId === awayClubId
+        ? { home: pensAway, away: pensHome }
+        : { home: pensHome, away: pensAway };
+    }
+    return null;
+  }
+
+  // The underline under the two clubs: aggregate, penalties when known and,
+  // as a fallback, whatever localized note the endpoint supplied.
+  function aggregateLine(
+    tie: Record<string, unknown>,
+    allLegs: Array<Record<string, unknown>>,
+    playedLegs: Array<Record<string, unknown>>,
+    homeClub: { id: string; name: string; logo: string },
+    awayClub: { id: string; name: string; logo: string }
+  ): string {
+    if (playedLegs.length === 0) return "";
+    const note = String(tie.note ?? "").trim();
+
+    // A single-match tie already shows its score; only a note adds context.
+    if (allLegs.length < 2) return esc(note);
+
+    const aggregate = goalsBySide(playedLegs, awayClub.id);
+    const pens = pensBySide(playedLegs, awayClub.id);
+    const winnerId = String(tie.winnerId ?? "");
+    const winnerIsHome = winnerId !== "" && winnerId === homeClub.id;
+    const winnerIsAway = winnerId !== "" && winnerId === awayClub.id;
+
+    if (pens && (winnerIsHome || winnerIsAway)) {
+      const winnerName = winnerIsHome ? homeClub.name : awayClub.name;
+      const winnerPens = winnerIsHome ? pens.home : pens.away;
+      const loserPens = winnerIsHome ? pens.away : pens.home;
+      return `Global ${aggregate.home}–${aggregate.away} · ${esc(winnerName)} por ${esc(winnerPens)}–${esc(loserPens)} en penales`;
+    }
+
+    if (note) return esc(note);
+
+    if (pens) {
+      return `Global ${aggregate.home}–${aggregate.away} · Penales ${esc(pens.home)}–${esc(pens.away)}`;
+    }
+
+    return `Global ${aggregate.home}–${aggregate.away}`;
+  }
+
+  function clubRow(
+    club: { id: string; name: string; logo: string },
+    tie: Record<string, unknown>
+  ): string {
+    const completed = String(tie.status ?? "") === "completed";
+    const winnerId = String(tie.winnerId ?? "");
+    // Pending ties never carry a winner, even if the payload is inconsistent.
+    const isWinner = completed && winnerId !== "" && winnerId === club.id;
+    const isLoser = completed && winnerId !== "" && !isWinner;
+
+    const logo = club.logo
+      ? `<img class="br__club-logo" src="${esc(club.logo)}" alt="" width="18" height="18" loading="lazy">`
+      : `<span class="br__club-logo br__club-logo--placeholder" aria-hidden="true"></span>`;
+
+    const classes = ["br__club"];
+    if (isWinner) classes.push("br__club--winner");
+    if (isLoser) classes.push("br__club--loser");
+
+    return `
+      <div class="${classes.join(" ")}">
+        ${logo}
+        <span class="br__club-name">${esc(club.name)}</span>
+        ${isWinner ? `<span class="br__winner" role="img" aria-label="Clasificado" title="Clasificado">✓</span>` : ""}
+      </div>
+    `;
+  }
+
+  function tieMarkup(tie: Record<string, unknown>): string {
+    const allLegs = Array.isArray(tie.legs)
+      ? (tie.legs as Array<Record<string, unknown>>)
+      : [];
+    if (allLegs.length === 0) return "";
+
+    const homeClub = clubFromLeg(allLegs[0], "home");
+    const awayClub = clubFromLeg(allLegs[0], "away");
+
+    const completed = String(tie.status ?? "") === "completed";
+    const live = allLegs.some((leg) => leg.live === true);
+
+    const playedLegs: Array<Record<string, unknown>> = [];
+    const legChips: string[] = [];
+
+    allLegs.forEach((leg, index) => {
+      if (!isPlayedLeg(tie, allLegs, index)) return;
+      playedLegs.push(leg);
+      const score = legScore(leg);
+      if (score === "") return;
+      const label = String(leg.legLabel ?? "").trim();
+      legChips.push(
+        `<span class="br__leg">${
+          label ? `<span class="br__leg-label">${esc(label)}</span>` : ""
+        }<span class="br__leg-score">${esc(score)}</span></span>`
+      );
+    });
+
+    const legsRow = legChips.length
+      ? `<div class="br__legs">${legChips.join(
+          `<span class="br__leg-sep" aria-hidden="true">·</span>`
+        )}</div>`
+      : "";
+
+    const aggregate = aggregateLine(tie, allLegs, playedLegs, homeClub, awayClub);
+
+    // Pending ties keep their scheduled date; completed ties need no date.
+    const pendingLeg = allLegs[allLegs.length - 1];
+    const dateLabel = fmtDate(String(pendingLeg.dateUtc ?? ""));
+    const footParts: string[] = [];
+    if (!completed && !live) {
+      footParts.push(`<span class="br__pending-status">Por jugar</span>`);
+    }
+    if (!completed && dateLabel) footParts.push(`<span>${esc(dateLabel)}</span>`);
+    const foot = footParts.length
+      ? `<div class="br__pending">${footParts.join("")}</div>`
+      : "";
+
+    const classes = ["br__tie"];
+    classes.push(completed ? "br__tie--completed" : "br__tie--pending");
+    if (live) classes.push("br__tie--live");
+
+    const head = live
+      ? `<div class="br__tie-head"><span class="br__live"><span class="br__live-dot" aria-hidden="true"></span>En vivo</span></div>`
+      : "";
+
+    return `
+      <article class="${classes.join(" ")}">
+        ${head}
+        <div class="br__clubs">
+          ${clubRow(homeClub, tie)}
+          ${clubRow(awayClub, tie)}
+        </div>
+        ${legsRow}
+        ${aggregate ? `<p class="br__aggregate">${aggregate}</p>` : ""}
+        ${foot}
+      </article>
+    `;
+  }
+
+  function renderBracket(payload: Record<string, unknown>): string {
+    const rounds = Array.isArray(payload.rounds)
+      ? (payload.rounds as Array<Record<string, unknown>>)
+      : [];
+
+    const visible = rounds
+      .map((round) => {
+        const ties = Array.isArray(round.ties)
+          ? (round.ties as Array<Record<string, unknown>>)
+          : [];
+        return {
+          title: round.title,
+          ties: ties.map(tieMarkup).filter((html) => html !== ""),
+        };
+      })
+      .filter((round) => round.ties.length > 0);
+
+    if (visible.length === 0) {
+      return `<div class="br__empty">${EMPTY_MESSAGE}</div>`;
+    }
+
+    const columns = visible
+      .map(
+        (round) => `
+        <div class="br__round">
+          <h3 class="br__round-title">${esc(round.title)}</h3>
+          <div class="br__ties">${round.ties.join("")}</div>
+        </div>
+      `
+      )
+      .join("");
+
+    return `<div class="br__rounds">${columns}</div>`;
+  }
+
+  function setLoading() {
+    panel.innerHTML = `<div class="br__loading" role="status"><span class="br__spinner" aria-hidden="true"></span>Cargando…</div>`;
+  }
+
+  function setError() {
+    panel.innerHTML = `
+      <div class="br__error">
+        <p>No pudimos cargar las llaves en este momento.</p>
+        <p><button class="btn btn--ghost br__retry" type="button">Reintentar</button></p>
+      </div>
+    `;
+    panel.querySelector(".br__retry")?.addEventListener("click", () => {
+      cache.delete(competition);
+      load(true);
+    });
+  }
+
+  async function load(force = false) {
+    if (inFlight) return;
+
+    if (!force) {
+      const cached = cache.get(competition);
+      if (cached && Date.now() - cached.at < CACHE_TTL_MS) {
+        panel.innerHTML = cached.html;
+        return;
+      }
+    }
+
+    inFlight = true;
+    setLoading();
+
+    try {
+      const res = await fetch(
+        `/api/bracket?competition=${encodeURIComponent(competition)}`
+      );
+      if (!res.ok) throw new Error(`API ${res.status}`);
+      const payload = await res.json();
+      const html = renderBracket(payload);
+      cache.set(competition, { html, at: Date.now() });
+      panel.innerHTML = html;
+    } catch {
+      setError();
+    } finally {
+      inFlight = false;
+    }
+  }
+
+  load();
+</script>
+
+<style is:global>
+  .br {
+    margin-bottom: var(--space-5);
+  }
+
+  .br__section-title {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    margin-block: var(--space-5) var(--space-4);
+  }
+
+  .br__section-title h2 {
+    margin: 0;
+  }
+
+  .br__card {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    padding: var(--space-4);
+    box-shadow: var(--shadow-card);
+  }
+
+  /* Secondary heading above the diagram, in the card eyebrow language. */
+  .br__eyebrow {
+    margin: 0 0 var(--space-3);
+    color: var(--color-accent);
+    font-size: var(--text-xs);
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  /* ----- Loading / errors / empty ----- */
+  .br__loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-2);
+    color: var(--color-text-muted);
+    padding: var(--space-5);
+  }
+
+  .br__spinner {
+    width: 18px;
+    height: 18px;
+    border: 2px solid var(--color-border-strong);
+    border-top-color: var(--color-accent);
+    border-radius: 50%;
+    animation: br-spin 700ms linear infinite;
+  }
+
+  @keyframes br-spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  .br__error,
+  .br__empty {
+    text-align: center;
+    color: var(--color-text-muted);
+    padding: var(--space-5);
+    border: 1px dashed var(--color-border);
+    border-radius: var(--radius-md);
+  }
+
+  .br__error p + p {
+    margin-top: var(--space-3);
+  }
+
+  /* ----- Rounds: stacked on mobile, columns from 901px ----- */
+  .br__rounds {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+    min-width: 0;
+  }
+
+  .br__round + .br__round {
+    border-top: 1px solid var(--color-border);
+    padding-top: var(--space-4);
+  }
+
+  .br__round-title {
+    margin: 0 0 var(--space-2);
+    color: var(--color-accent);
+    font-size: var(--text-xs);
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .br__ties {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+  }
+
+  /* ----- Tie cards ----- */
+  .br__tie {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    min-width: 0;
+    background: var(--color-surface-raised);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    padding: var(--space-2) var(--space-3);
+  }
+
+  .br__tie--live {
+    border-color: rgb(226 89 106 / 55%);
+  }
+
+  .br__tie-head {
+    display: flex;
+    justify-content: flex-end;
+  }
+
+  .br__live {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.15rem 0.45rem;
+    border-radius: var(--radius-sm);
+    background: rgb(226 89 106 / 14%);
+    color: #f6bcc4;
+    font-size: 0.6875rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+
+  .br__live-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--color-danger);
+    box-shadow: 0 0 0 0 rgb(226 89 106 / 60%);
+    animation: br-live-pulse 2s ease-out infinite;
+  }
+
+  @keyframes br-live-pulse {
+    0% {
+      box-shadow: 0 0 0 0 rgb(226 89 106 / 55%);
+    }
+    70% {
+      box-shadow: 0 0 0 7px rgb(226 89 106 / 0%);
+    }
+    100% {
+      box-shadow: 0 0 0 0 rgb(226 89 106 / 0%);
+    }
+  }
+
+  .br__clubs {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+
+  .br__club {
+    display: grid;
+    grid-template-columns: 18px minmax(0, 1fr) auto;
+    align-items: center;
+    gap: var(--space-2);
+    min-width: 0;
+    margin-inline: calc(-1 * var(--space-1));
+    padding: 2px var(--space-1);
+    border-radius: var(--radius-sm);
+    font-size: var(--text-sm);
+    font-weight: 600;
+  }
+
+  .br__club--winner {
+    background: rgb(182 240 74 / 8%);
+    color: var(--color-text);
+  }
+
+  .br__club--loser {
+    color: var(--color-text-muted);
+    opacity: 0.55;
+  }
+
+  .br__club-logo {
+    width: 18px;
+    height: 18px;
+    object-fit: contain;
+    flex-shrink: 0;
+  }
+
+  .br__club-logo--placeholder {
+    background: var(--color-border);
+    border-radius: 50%;
+  }
+
+  .br__club-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .br__winner {
+    color: var(--color-accent);
+    font-size: var(--text-xs);
+    font-weight: 800;
+    line-height: 1;
+  }
+
+  /* ----- Per-leg scores and the aggregate underline ----- */
+  .br__legs {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-1) var(--space-2);
+    border-top: 1px solid var(--color-border);
+    padding-top: var(--space-2);
+    color: var(--color-text-soft);
+    font-size: var(--text-xs);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .br__leg {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+  }
+
+  .br__leg-label {
+    color: var(--color-text-muted);
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  .br__leg-score {
+    color: var(--color-text);
+    font-weight: 800;
+  }
+
+  .br__leg-sep {
+    color: var(--color-text-muted);
+  }
+
+  .br__aggregate {
+    color: var(--color-text-soft);
+    font-size: var(--text-xs);
+    font-weight: 600;
+  }
+
+  /* ----- Pending tie footer ----- */
+  .br__pending {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-1) var(--space-2);
+    border-top: 1px dashed var(--color-border);
+    padding-top: var(--space-2);
+    color: var(--color-text-muted);
+    font-size: var(--text-xs);
+  }
+
+  .br__pending-status {
+    color: var(--color-text-soft);
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  /* ----- Desktop: classic bracket columns with horizontal scroll ----- */
+  @media (min-width: 901px) {
+    .br__rounds {
+      flex-direction: row;
+      align-items: flex-start;
+      gap: var(--space-4);
+      overflow-x: auto;
+      padding-bottom: var(--space-2);
+    }
+
+    .br__round + .br__round {
+      border-top: none;
+      padding-top: 0;
+    }
+
+    .br__round {
+      flex: 0 0 auto;
+      width: 256px;
+      padding-right: var(--space-4);
+      border-right: 1px solid var(--color-border);
+    }
+
+    .br__round:last-child {
+      border-right: none;
+      padding-right: 0;
+    }
+
+    .br__tie {
+      max-width: 232px;
+    }
+  }
+
+  @media (max-width: 600px) {
+    .br__card {
+      padding: var(--space-3);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .br__spinner,
+    .br__live-dot {
+      animation: none;
+    }
+  }
+</style>

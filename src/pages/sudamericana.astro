@@ -1,6 +1,7 @@
 ---
 import BaseLayout from "../layouts/BaseLayout.astro";
 import FootballData from "../components/FootballData.astro";
+import Bracket from "../components/Bracket.astro";
 ---
 
 <BaseLayout
@@ -13,4 +14,6 @@ import FootballData from "../components/FootballData.astro";
     logoAlt="Logo de la Copa Sudamericana"
     endpoint="sudamericana"
   />
+
+  <Bracket competition="sudamericana" heading="Llaves Copa Sudamericana" />
 </BaseLayout>

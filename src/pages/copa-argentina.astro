@@ -1,6 +1,7 @@
 ---
 import BaseLayout from "../layouts/BaseLayout.astro";
 import FootballData from "../components/FootballData.astro";
+import Bracket from "../components/Bracket.astro";
 ---
 
 <BaseLayout
@@ -15,4 +16,6 @@ import FootballData from "../components/FootballData.astro";
     standings={false}
     defaultView="next"
   />
+
+  <Bracket competition="copa-argentina" heading="Llaves Copa Argentina" />
 </BaseLayout>
