@@ -8,6 +8,8 @@
 //
 // GET /api/football?competition=lpf|copa-argentina|primera-b|libertadores|sudamericana&view=standings|last|next|live
 
+import { espn } from "../../lib/espn";
+
 export const prerender = false;
 
 const COMPETITIONS = {
@@ -33,14 +35,6 @@ function json(data: unknown, status = 200) {
     status,
     headers: { "content-type": "application/json; charset=utf-8" },
   });
-}
-
-async function espn(url: string): Promise<any> {
-  const res = await fetch(url, {
-    headers: { "user-agent": "MiXteam/2.0 (+portfolio project)" },
-  });
-  if (!res.ok) throw new Error(`ESPN respondió ${res.status}`);
-  return res.json();
 }
 
 function withCache(key: string, producer: () => Promise<unknown>): Promise<unknown> {

@@ -4,6 +4,8 @@
 //
 // GET /api/news
 
+import { espn } from "../../lib/espn";
+
 export const prerender = false;
 
 const ESPN_NEWS = "https://site.api.espn.com/apis/site/v2/sports/soccer";
@@ -51,11 +53,9 @@ function mapArticle(article: EspnArticle) {
 }
 
 async function feed(slug: string) {
-  const res = await fetch(`${ESPN_NEWS}/${slug}/news?lang=es`, {
-    headers: { "user-agent": "MiXteam/2.0 (+portfolio project)" },
+  const data = await espn(`${ESPN_NEWS}/${slug}/news?lang=es`).catch((error: any) => {
+    throw new Error(`ESPN news (${slug}) falló: ${error?.message ?? error}`);
   });
-  if (!res.ok) throw new Error(`ESPN news (${slug}) respondió ${res.status}`);
-  const data = await res.json();
   return ((data.articles ?? []) as EspnArticle[])
     .map((article) => mapArticle(article))
     .filter((item) => item.title && item.url);
