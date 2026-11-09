@@ -166,9 +166,11 @@ function statusOf(state: string, status: any): MatchDetail["status"] {
   const type = status?.type ?? {};
   if (state === "post") {
     const detail = String(type.detail ?? "");
+    const name = String(type.name ?? "");
     let label = "Finalizado";
-    if (/penalt/i.test(detail)) label = "Penales";
-    else if (/extra/i.test(detail)) label = "Prórroga";
+    // "Final - Pen" / STATUS_FINAL_PEN: decided on penalties (or in extra time).
+    if (/pen/i.test(detail) || /PEN$|_PEN|PENALT/.test(name)) label = "Penales";
+    else if (/extra|alarg/i.test(detail) || /_OT$|_EXTRA/.test(name)) label = "Prórroga";
     return { state: "post", label, live: false };
   }
 
@@ -225,12 +227,24 @@ function venueText(venue: any): string {
   return parts.join(" — ");
 }
 
+/**
+ * Soccer periods are positional: 0/1 are the halves, 2/3 (when present) are
+ * extra time and the last one (5th) is the penalty shootout. ESPN gives the
+ * entries no usable `period` field, so the index decides the label.
+ */
+function halfLabel(index: number, total: number): string {
+  if (total >= 5 && index === total - 1) return "PEN";
+  if (total >= 4 && index >= 2) return `PR${index - 1}`;
+  return `${index + 1}T`;
+}
+
 function halvesOf(homeC: any, awayC: any): MatchHalf[] {
   const homeLines = Array.isArray(homeC?.linescores) ? homeC.linescores : [];
   const awayLines = Array.isArray(awayC?.linescores) ? awayC.linescores : [];
+  const total = homeLines.length;
   return homeLines
     .map((line: any, index: number) => ({
-      label: `${index + 1}T`,
+      label: halfLabel(index, total),
       home: String(line?.displayValue ?? line?.value ?? ""),
       away: String(awayLines[index]?.displayValue ?? awayLines[index]?.value ?? ""),
     }))
