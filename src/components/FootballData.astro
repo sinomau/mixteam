@@ -1,37 +1,55 @@
 ﻿---
-// Data-driven sports view shared by the three competition pages.
+// Data-driven sports view shared by the competition pages.
 // Tabs render standings, results, upcoming fixtures and live matches.
-// All data flows through the /api/football server proxy — no API keys
-// ever reach the browser. Legacy reference: legacy/js/api.js
+// Knockout cups (Copa Argentina) have no standings table, so that tab can
+// be hidden with `standings={false}` and the initial view chosen with
+// `defaultView`. All data flows through the /api/football server proxy —
+// no API keys ever reach the browser. Legacy reference: legacy/js/api.js
 interface Props {
   heading: string;
   logo: string;
   logoAlt: string;
   endpoint: string;
+  standings?: boolean;
+  defaultView?: string;
 }
 
-const { heading, logo, logoAlt, endpoint } = Astro.props;
+const {
+  heading,
+  logo,
+  logoAlt,
+  endpoint,
+  standings = true,
+  defaultView = standings ? "standings" : "last",
+} = Astro.props;
+
+const tabs = [
+  { view: "standings", label: "Tabla de posiciones", show: standings },
+  { view: "last", label: "Resultados", show: true },
+  { view: "next", label: "Próximos partidos", show: true },
+  { view: "live", label: "En vivo", show: true },
+].filter((tab) => tab.show);
 ---
 
-<section class="fb" data-endpoint={endpoint} aria-labelledby="fb-heading">
+<section class="fb" data-endpoint={endpoint} data-default-view={defaultView} aria-labelledby="fb-heading">
   <div class="section-title">
     <h2 id="fb-heading">{heading}</h2>
     <img src={logo} alt={logoAlt} loading="eager" class="fb__comp-logo" />
   </div>
 
   <div class="fb__tabs" role="tablist" aria-label="Qué ver">
-    <button class="fb__tab" role="tab" data-view="standings" aria-selected="true">
-      Tabla de posiciones
-    </button>
-    <button class="fb__tab" role="tab" data-view="last" aria-selected="false">
-      Resultados
-    </button>
-    <button class="fb__tab" role="tab" data-view="next" aria-selected="false">
-      Próximos partidos
-    </button>
-    <button class="fb__tab" role="tab" data-view="live" aria-selected="false">
-      En vivo
-    </button>
+    {
+      tabs.map((tab) => (
+        <button
+          class="fb__tab"
+          role="tab"
+          data-view={tab.view}
+          aria-selected={tab.view === defaultView ? "true" : "false"}
+        >
+          {tab.label}
+        </button>
+      ))
+    }
   </div>
 
   <div class="fb__panel" aria-live="polite"></div>
@@ -265,9 +283,10 @@ const { heading, logo, logoAlt, endpoint } = Astro.props;
     tab.addEventListener("click", () => load(tab.dataset.view!))
   );
 
-  // Load the default view with fresh data on every visit.
+  // Load the default view with fresh data on every visit; comps without a
+  // standings table (cups) declare theirs in data-default-view.
   activeTab = null;
-  load("standings");
+  load(section.dataset.defaultView ?? "standings");
 </script>
 
 <style is:global>

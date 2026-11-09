@@ -1,6 +1,6 @@
 // Server-side proxy for sports news, fed by ESPN's public API in Spanish.
 // Zero API keys, zero quotas. Merged feeds for breadth: global soccer,
-// Argentine league, Libertadores and Sudamericana.
+// Argentine league and cups, and the two continental competitions.
 //
 // GET /api/news
 
@@ -8,7 +8,14 @@ export const prerender = false;
 
 const ESPN_NEWS = "https://site.api.espn.com/apis/site/v2/sports/soccer";
 
-const FEEDS = ["all", "arg.1", "conmebol.libertadores", "conmebol.sudamericana"] as const;
+const FEEDS = [
+  "all",
+  "arg.1",
+  "arg.copa",
+  "arg.2",
+  "conmebol.libertadores",
+  "conmebol.sudamericana",
+] as const;
 
 const CACHE_TTL_MS = 10 * 60 * 1000;
 const MAX_ITEMS = 12;

@@ -1,0 +1,16 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import FootballData from "../components/FootballData.astro";
+---
+
+<BaseLayout
+  title="Primera Nacional"
+  description="Tabla de posiciones, resultados y fixture de la Primera Nacional."
+>
+  <FootballData
+    heading="Primera Nacional"
+    logo="https://a.espncdn.com/i/leaguelogos/soccer/500/2294.png"
+    logoAlt="Logo de la Primera Nacional"
+    endpoint="primera-b"
+  />
+</BaseLayout>

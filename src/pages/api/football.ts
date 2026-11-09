@@ -4,14 +4,16 @@
 // Why ESPN and not API-Football: the free API-Football plan only serves
 // seasons 2022-2024 and blocks the `next`/`last` parameters, so a current
 // season (e.g. Liga Profesional 2026) is impossible without paying.
-// ESPN's public endpoints cover all three competitions of this site.
+// ESPN's public endpoints cover every competition this site shows.
 //
-// GET /api/football?competition=lpf|libertadores|sudamericana&view=standings|last|next|live
+// GET /api/football?competition=lpf|copa-argentina|primera-b|libertadores|sudamericana&view=standings|last|next|live
 
 export const prerender = false;
 
 const COMPETITIONS = {
   lpf: { slug: "arg.1", name: "Liga Profesional de Fútbol" },
+  "copa-argentina": { slug: "arg.copa", name: "Copa Argentina" },
+  "primera-b": { slug: "arg.2", name: "Primera Nacional" },
   libertadores: { slug: "conmebol.libertadores", name: "Copa Libertadores" },
   sudamericana: { slug: "conmebol.sudamericana", name: "Copa Sudamericana" },
 } as const;

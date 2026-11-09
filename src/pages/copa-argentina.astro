@@ -1,0 +1,18 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import FootballData from "../components/FootballData.astro";
+---
+
+<BaseLayout
+  title="Copa Argentina"
+  description="Resultados, próximos partidos y finales en vivo de la Copa Argentina."
+>
+  <FootballData
+    heading="Copa Argentina"
+    logo="https://a.espncdn.com/i/leaguelogos/soccer/500/2320.png"
+    logoAlt="Logo de la Copa Argentina"
+    endpoint="copa-argentina"
+    standings={false}
+    defaultView="next"
+  />
+</BaseLayout>
