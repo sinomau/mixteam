@@ -22,8 +22,10 @@ const ESPN_SITE = "https://site.api.espn.com/apis/site/v2/sports/soccer";
 const ESPN_V2 = "https://site.api.espn.com/apis/v2/sports/soccer";
 
 const CACHE_TTL_MS = 5 * 60 * 1000;
+// The fixture window. The big finals (Libertadores/Sudamericana/Copa
+// Argentina) can sit ~4-5 weeks out, so "Próximos partidos" must reach them.
 const PAST_DAYS = 7;
-const FUTURE_DAYS = 14;
+const FUTURE_DAYS = 35;
 const cache = new Map<string, { data: unknown; at: number }>();
 
 function json(data: unknown, status = 200) {
