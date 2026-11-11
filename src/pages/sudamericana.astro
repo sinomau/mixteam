@@ -13,7 +13,7 @@ import Bracket from "../components/Bracket.astro";
     logo="/assets/img/logo-sudamericana.png"
     logoAlt="Logo de la Copa Sudamericana"
     endpoint="sudamericana"
-  />
-
-  <Bracket competition="sudamericana" heading="Llaves Copa Sudamericana" />
+  >
+    <Bracket slot="llaves" competition="sudamericana" />
+  </FootballData>
 </BaseLayout>

@@ -23,10 +23,15 @@ const {
   defaultView = standings ? "standings" : "last",
 } = Astro.props;
 
+// Cup pages drop their <Bracket> into the "llaves" slot: it becomes one more
+// tab, with its own proxy and its own script, instead of a block below.
+const hasBrackets = Astro.slots.has("llaves");
+
 const tabs = [
   { view: "standings", label: "Tabla de posiciones", show: standings },
   { view: "last", label: "Resultados", show: true },
   { view: "next", label: "Próximos partidos", show: true },
+  { view: "brackets", label: "Llaves", show: hasBrackets },
   { view: "live", label: "En vivo", show: true },
 ].filter((tab) => tab.show);
 ---
@@ -53,6 +58,14 @@ const tabs = [
   </div>
 
   <div class="fb__panel" aria-live="polite"></div>
+
+  {
+    hasBrackets && (
+      <div class="fb__brackets" hidden>
+        <slot name="llaves" />
+      </div>
+    )
+  }
 </section>
 
 <script>
@@ -60,6 +73,7 @@ const tabs = [
   const endpoint = section.dataset.endpoint!;
   const tabs = [...section.querySelectorAll<HTMLButtonElement>(".fb__tab")];
   const panel = section.querySelector<HTMLDivElement>(".fb__panel")!;
+  const brackets = section.querySelector<HTMLElement>(".fb__brackets");
 
   const CACHE_TTL_MS = 5 * 60 * 1000;
   const cache = new Map<string, { html: string; at: number }>();
@@ -245,12 +259,31 @@ const tabs = [
     return renderFixtures(matches);
   }
 
+  // Two panels share the tab bar: the data view and the bracket component.
+  // The bracket keeps its own innerHTML and its own proxy, so switching tabs
+  // only toggles visibility. It starts hidden, which means zero measurements,
+  // so it is told to recenter itself every time the tab opens.
+  function showView(view: string) {
+    const isBrackets = view === "brackets" && brackets !== null;
+    panel.hidden = isBrackets;
+    if (brackets) brackets.hidden = !isBrackets;
+    if (isBrackets) {
+      document.dispatchEvent(new CustomEvent("mixt:bracket-reveal"));
+    }
+  }
+
   async function load(view: string) {
-    if (activeTab === view || inFlight) return;
+    if (activeTab === view) return;
     activeTab = view;
     tabs.forEach((tab) =>
       tab.setAttribute("aria-selected", tab.dataset.view === view ? "true" : "false")
     );
+    showView(view);
+
+    // The bracket fetches itself on mount; there is nothing to load here.
+    if (view === "brackets") return;
+
+    if (inFlight) return;
     setLoading();
 
     const cached = cacheGet(`${endpoint}:${view}`);
@@ -328,6 +361,12 @@ const tabs = [
   .fb__tab[aria-selected="true"] {
     color: var(--color-accent);
     border-bottom-color: var(--color-accent);
+  }
+
+  /* The bracket panel is a sibling of the data panel: only one is visible. */
+  .fb__panel[hidden],
+  .fb__brackets[hidden] {
+    display: none;
   }
 
   /* ----- Loading / errors / empty ----- */

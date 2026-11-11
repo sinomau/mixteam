@@ -15,7 +15,7 @@ import Bracket from "../components/Bracket.astro";
     endpoint="copa-argentina"
     standings={false}
     defaultView="next"
-  />
-
-  <Bracket competition="copa-argentina" heading="Llaves Copa Argentina" />
+  >
+    <Bracket slot="llaves" competition="copa-argentina" />
+  </FootballData>
 </BaseLayout>

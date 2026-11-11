@@ -5,19 +5,24 @@
 // no API keys ever reach the browser.
 interface Props {
   competition: string;
-  heading: string;
+  /** Omit it when the bracket lives inside a tab: the tab already names it. */
+  heading?: string;
 }
 
 const { competition, heading } = Astro.props;
 ---
 
-<section class="br" data-competition={competition} aria-labelledby="br-heading">
-  <div class="br__section-title">
-    <h2 id="br-heading">{heading}</h2>
-  </div>
+<section class="br" data-competition={competition} aria-label={heading ?? "Llaves"}>
+  {
+    heading && (
+      <div class="br__section-title">
+        <h2>{heading}</h2>
+      </div>
+    )
+  }
 
   <div class="br__card">
-    <p class="br__eyebrow">Llaves</p>
+    {heading && <p class="br__eyebrow">Llaves</p>}
     <div class="br__panel" aria-live="polite"></div>
   </div>
 </section>
@@ -318,14 +323,18 @@ const { competition, heading } = Astro.props;
   // scores sit on the line that leaves each tie, where the poster puts them.
 
   const TREE = {
-    cardW: 172,
+    // 4 rounds = 7 columns. Wider cards stop fitting a 1366px screen, and a
+    // poster you have to scroll is not a poster: it hides one of the branches.
+    cardW: 148,
     cardH: 58,
-    gap: 34,
+    gap: 22,
     row: 68,
-    pad: 10,
+    pad: 8,
     header: 22,
     /** Most first-round ties the poster draws (8 = the classic 16-team shape). */
     maxSlots: 8,
+    /** Rounds the poster draws; the earlier ones stay in the stacked list. */
+    maxRounds: 4,
   };
 
   interface TreeBox {
@@ -394,6 +403,10 @@ const { competition, heading } = Astro.props;
     // several ties (a cup before its final is drawn) keeps the stacked view
     // instead of silently dropping half of the bracket.
     if (list[list.length - 1].ties.length !== 1) return null;
+
+    // Four rounds is as wide as the poster can be and still fit on a laptop.
+    // The rounds before it keep living in the stacked list.
+    if (list.length > TREE.maxRounds) return buildTree(list.slice(1));
 
     const byId = new Map<string, { tie: Record<string, unknown>; roundIndex: number }>();
     list.forEach((round, roundIndex) => {
@@ -673,8 +686,17 @@ const { competition, heading } = Astro.props;
 
   wideView.addEventListener("change", expandRoundsOnDesktop);
 
+  // Inside a tab the section starts hidden, so every measurement is zero. The
+  // tab tells us when it opens: recenter the poster on the final then.
+  document.addEventListener("mixt:bracket-reveal", () => {
+    centerTree();
+  });
+
   function mount(html: string): void {
     panel.innerHTML = html;
+    // The poster is wider than the page column: it only goes full-bleed when
+    // there really is a tree to show.
+    section.classList.toggle("br--poster", Boolean(panel.querySelector(".br__tree")));
     centerTree();
     expandRoundsOnDesktop();
   }
@@ -1087,6 +1109,17 @@ const { competition, heading } = Astro.props;
 
   /* ----- Desktop: the poster tree (the stacked rounds stay for mobile) ----- */
   @media (min-width: 901px) {
+    /* The poster never fits the 68rem column: it is 7 columns wide. A bracket
+       that has to be scrolled hides one of its two branches, so on a wide
+       screen it takes the room it needs and stays centred on the page. */
+    .br--poster {
+      position: relative;
+      left: 50%;
+      width: max-content;
+      max-width: calc(100vw - 32px);
+      transform: translateX(-50%);
+    }
+
     .br__rounds {
       flex-direction: row;
       align-items: flex-start;
