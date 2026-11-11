@@ -310,7 +310,17 @@ const { competition, heading } = Astro.props;
     const tree = buildTree(rounds);
     const listClass = tree ? "br__rounds br__rounds--tree" : "br__rounds";
 
-    return `<div class="${listClass}">${columns}</div>${
+    // The poster draws the last few rounds only. On a wide screen the stacked
+    // list is hidden, so the rounds the poster left out are rendered above it:
+    // a club that fell in the previous round is part of the story, not noise.
+    const early = tree ? visible.slice(0, tree.skipped) : [];
+    const earlyHtml = early.length
+      ? `<div class="br__early">${early
+          .map((round, index) => roundHtml(round, index))
+          .join("")}</div>`
+      : "";
+
+    return `${earlyHtml}<div class="${listClass}">${columns}</div>${
       tree ? renderTree(tree) : ""
     }`;
   }
@@ -390,7 +400,7 @@ const { competition, heading } = Astro.props;
    * sides it was fed by, so a tie with one feeder stays aligned with it and
    * a tie with two feeders sits between them: the classic poster shape.
    */
-  function buildTree(rounds: Array<Record<string, unknown>>) {
+  function buildTree(rounds: Array<Record<string, unknown>>, skipped = 0) {
     const list = rounds
       .map((round) => ({
         title: String(round.title ?? ""),
@@ -405,8 +415,9 @@ const { competition, heading } = Astro.props;
     if (list[list.length - 1].ties.length !== 1) return null;
 
     // Four rounds is as wide as the poster can be and still fit on a laptop.
-    // The rounds before it keep living in the stacked list.
-    if (list.length > TREE.maxRounds) return buildTree(list.slice(1));
+    // The rounds before it keep living in the stacked list, and the desktop
+    // view renders them above the poster so no round ever goes missing.
+    if (list.length > TREE.maxRounds) return buildTree(list.slice(1), skipped + 1);
 
     const byId = new Map<string, { tie: Record<string, unknown>; roundIndex: number }>();
     list.forEach((round, roundIndex) => {
@@ -455,7 +466,7 @@ const { competition, heading } = Astro.props;
     // outermost round is dropped until the shape fits; the list view (mobile)
     // still carries every round.
     if (band > TREE.maxSlots && list.length > 2) {
-      return buildTree(list.slice(1));
+      return buildTree(list.slice(1), skipped + 1);
     }
 
     const centers = new Map<string, number>();
@@ -586,7 +597,7 @@ const { competition, heading } = Astro.props;
     const width = TREE.pad * 2 + (2 * depth + 1) * TREE.cardW + 2 * depth * TREE.gap;
     const height = TREE.header + band * TREE.row + TREE.pad;
 
-    return { boxes, paths, titles, width, height };
+    return { boxes, paths, titles, width, height, skipped };
   }
 
   function rootBoxX(boxes: TreeBox[]): number {
@@ -824,6 +835,12 @@ const { competition, heading } = Astro.props;
     flex-direction: column;
     gap: 6px;
     min-width: 0;
+  }
+
+  /* Rounds the poster does not draw. They stay in the mobile list, which is
+     already complete, so this block only exists on the desktop view. */
+  .br__early {
+    display: none;
   }
 
   .br__round {
@@ -1142,6 +1159,20 @@ const { competition, heading } = Astro.props;
 
     .br__rounds--tree {
       display: none;
+    }
+
+    /* Everything the poster left out, right above it: the previous rounds are
+       one tap away instead of silently missing on a wide screen. */
+    .br__early {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      max-width: 780px;
+      margin: 0 auto var(--space-4);
+    }
+
+    .br__early .br__round {
+      width: 100%;
     }
 
     .br__tree-scroll {
