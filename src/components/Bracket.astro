@@ -442,12 +442,19 @@ const { competition, heading } = Astro.props;
       return span;
     };
 
-    const totalSlots = spanOf(rootParents.home) + spanOf(rootParents.away);
+    // A mirror needs BOTH branches in the same vertical band, each centred on
+    // it, so the two semifinals end up on the same line as the final and the
+    // final joins them with a straight line. Stacking the branches one after
+    // the other (left on top, right below) is a linear bracket, not a poster.
+    const homeSpan = spanOf(rootParents.home);
+    const awaySpan = spanOf(rootParents.away);
+    const band = Math.max(homeSpan, awaySpan);
+
     // The poster draws the home stretch. A 64-team cup has seven rounds, and a
     // full tree would stand thousands of pixels tall inside the card, so the
     // outermost round is dropped until the shape fits; the list view (mobile)
     // still carries every round.
-    if (totalSlots > TREE.maxSlots && list.length > 2) {
+    if (band > TREE.maxSlots && list.length > 2) {
       return buildTree(list.slice(1));
     }
 
@@ -478,7 +485,10 @@ const { competition, heading } = Astro.props;
       centers.set(id, center);
     };
 
-    place(rootId, 0);
+    // Each branch is centred inside the band, so a branch with fewer slots (an
+    // unfinished side) still meets the final on its line.
+    place(rootParents.home, (band - homeSpan) / 2);
+    place(rootParents.away, (band - awaySpan) / 2);
 
     const depth = list.length - 1;
 
@@ -521,7 +531,7 @@ const { competition, heading } = Astro.props;
       branch: "center",
       column: depth,
       x: columnX(depth),
-      centerY: TREE.header + (totalSlots / 2) * TREE.row,
+      centerY: TREE.header + (band / 2) * TREE.row,
       isRoot: true,
     });
 
@@ -560,19 +570,21 @@ const { competition, heading } = Astro.props;
     const leftChild = byBoxId.get(rootParents.home);
     const rightChild = byBoxId.get(rootParents.away);
     if (leftChild && rightChild) {
-      const leftJoin = rootBoxX(boxes) - 26;
+      // The join sits in the middle of the gap, so the two halves of the line
+      // meet exactly and neither one runs under a card.
+      const leftJoin = (leftChild.x + TREE.cardW + rootBoxX(boxes)) / 2;
       paths.push(`M ${leftChild.x + TREE.cardW} ${leftChild.centerY} H ${leftJoin}`);
       paths.push(`M ${leftJoin} ${leftChild.centerY} V ${rootBoxY(boxes)}`);
       paths.push(`M ${leftJoin} ${rootBoxY(boxes)} H ${rootBoxX(boxes)}`);
 
-      const rightJoin = rootBoxX(boxes) + TREE.cardW + 26;
+      const rightJoin = (rootBoxX(boxes) + TREE.cardW + rightChild.x) / 2;
       paths.push(`M ${rightChild.x} ${rightChild.centerY} H ${rightJoin}`);
       paths.push(`M ${rightJoin} ${rightChild.centerY} V ${rootBoxY(boxes)}`);
       paths.push(`M ${rootBoxX(boxes) + TREE.cardW} ${rootBoxY(boxes)} H ${rightJoin}`);
     }
 
     const width = TREE.pad * 2 + (2 * depth + 1) * TREE.cardW + 2 * depth * TREE.gap;
-    const height = TREE.header + totalSlots * TREE.row + TREE.pad;
+    const height = TREE.header + band * TREE.row + TREE.pad;
 
     return { boxes, paths, titles, width, height };
   }
