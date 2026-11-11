@@ -295,7 +295,389 @@ const { competition, heading } = Astro.props;
       )
       .join("");
 
-    return `<div class="br__rounds">${columns}</div>`;
+    // The tree is the desktop view; the stacked rounds stay for mobile. When
+    // the rounds do not form a tree (a tournament without a final yet), the
+    // stacked list is the only view there is.
+    const tree = renderTree(rounds);
+    const listClass = tree ? "br__rounds br__rounds--tree" : "br__rounds";
+
+    return `<div class="${listClass}">${columns}</div>${tree}`;
+  }
+
+  // ----- The bracket as a connected tree -----
+  //
+  // The rounds are a tree: the tie that produced a club is the tie that fed
+  // it. The diagram draws that link, puts the final in the middle and mirrors
+  // its two branches around it, the way a tournament poster does. The leg
+  // scores sit on the line that leaves each tie, where the poster puts them.
+
+  const TREE = {
+    cardW: 172,
+    cardH: 58,
+    gap: 34,
+    row: 68,
+    pad: 10,
+    header: 22,
+    /** Most first-round ties the poster draws (8 = the classic 16-team shape). */
+    maxSlots: 8,
+  };
+
+  interface TreeBox {
+    id: string;
+    tie: Record<string, unknown>;
+    roundIndex: number;
+    branch: "left" | "right" | "center";
+    column: number;
+    x: number;
+    centerY: number;
+    isRoot: boolean;
+  }
+
+  function treeParents(tie: Record<string, unknown>): { home: string; away: string } {
+    const parents = (tie.parents ?? {}) as Record<string, unknown>;
+    return { home: String(parents.home ?? ""), away: String(parents.away ?? "") };
+  }
+
+  /** Day/month of a leg, plus the kick-off time while the leg is unplayed. */
+  function legDate(leg: Record<string, unknown>): string {
+    const date = new Date(String(leg.dateUtc ?? ""));
+    if (Number.isNaN(date.getTime())) return "";
+    const day = `${String(date.getDate()).padStart(2, "0")}/${String(
+      date.getMonth() + 1
+    ).padStart(2, "0")}`;
+    if (leg.live === true || String(leg.status ?? "") !== "pending") return day;
+    const time = `${String(date.getHours()).padStart(2, "0")}:${String(
+      date.getMinutes()
+    ).padStart(2, "0")}`;
+    return `${day} ${time}`;
+  }
+
+  /** "IDA 24/04 · VUELTA 08/05" — the line the poster prints under the clubs. */
+  function tieDates(tie: Record<string, unknown>): string {
+    const legs = (Array.isArray(tie.legs) ? tie.legs : []) as Array<Record<string, unknown>>;
+    return legs
+      .map((leg) => {
+        const label = String(leg.legLabel ?? "").trim().toUpperCase();
+        const date = legDate(leg);
+        return [label, date].filter(Boolean).join(" ");
+      })
+      .filter(Boolean)
+      .join(" · ");
+  }
+
+  /**
+   * Lays the rounds out as a tree.
+   *
+   * Every tie owns a vertical range of the canvas: a side that was fed by
+   * another tie owns that tie's whole range, a side whose club entered the
+   * round directly owns nothing (there is no card to draw for it — the tie
+   * card already names both clubs). A tie sits in the middle of the two
+   * sides it was fed by, so a tie with one feeder stays aligned with it and
+   * a tie with two feeders sits between them: the classic poster shape.
+   */
+  function buildTree(rounds: Array<Record<string, unknown>>) {
+    const list = rounds
+      .map((round) => ({
+        title: String(round.title ?? ""),
+        ties: (Array.isArray(round.ties) ? round.ties : []) as Array<Record<string, unknown>>,
+      }))
+      .filter((round) => round.ties.length > 0);
+    if (list.length < 2) return null;
+
+    // The poster is built around ONE final. A stage whose last round still has
+    // several ties (a cup before its final is drawn) keeps the stacked view
+    // instead of silently dropping half of the bracket.
+    if (list[list.length - 1].ties.length !== 1) return null;
+
+    const byId = new Map<string, { tie: Record<string, unknown>; roundIndex: number }>();
+    list.forEach((round, roundIndex) => {
+      for (const tie of round.ties) {
+        const id = String(tie.id ?? "");
+        if (id && !byId.has(id)) byId.set(id, { tie, roundIndex });
+      }
+    });
+
+    const rootTie = list[list.length - 1].ties[0];
+    const rootId = String(rootTie.id ?? "");
+    if (!byId.has(rootId)) return null;
+
+    const rootParents = treeParents(rootTie);
+    // The poster needs one final with a branch on each side.
+    if (!rootParents.home || !rootParents.away) return null;
+
+    const spanCache = new Map<string, number>();
+    const spanOf = (id: string): number => {
+      const cached = spanCache.get(id);
+      if (cached !== undefined) return cached;
+      const entry = byId.get(id);
+      if (!entry) return 1;
+      const parents = treeParents(entry.tie);
+      let span = 1;
+      if (entry.roundIndex > 0) {
+        const home = parents.home ? spanOf(parents.home) : 0;
+        const away = parents.away ? spanOf(parents.away) : 0;
+        span = home + away;
+      }
+      if (span === 0) span = 1;
+      spanCache.set(id, span);
+      return span;
+    };
+
+    const totalSlots = spanOf(rootParents.home) + spanOf(rootParents.away);
+    // The poster draws the home stretch. A 64-team cup has seven rounds, and a
+    // full tree would stand thousands of pixels tall inside the card, so the
+    // outermost round is dropped until the shape fits; the list view (mobile)
+    // still carries every round.
+    if (totalSlots > TREE.maxSlots && list.length > 2) {
+      return buildTree(list.slice(1));
+    }
+
+    const centers = new Map<string, number>();
+    const place = (id: string, startSlot: number): void => {
+      const entry = byId.get(id);
+      if (!entry) return;
+      const parents = treeParents(entry.tie);
+      if (entry.roundIndex === 0) {
+        centers.set(id, startSlot + 0.5);
+        return;
+      }
+      const homeSpan = parents.home ? spanOf(parents.home) : 0;
+      if (parents.home) place(parents.home, startSlot);
+      if (parents.away) place(parents.away, startSlot + homeSpan);
+      const homeCenter = parents.home ? centers.get(parents.home) : undefined;
+      const awayCenter = parents.away ? centers.get(parents.away) : undefined;
+      // A tie fed by one side only keeps that side's line; fed by two, it
+      // sits in the middle of both.
+      const center =
+        homeCenter !== undefined && awayCenter !== undefined
+          ? (homeCenter + awayCenter) / 2
+          : homeCenter !== undefined
+            ? homeCenter
+            : awayCenter !== undefined
+              ? awayCenter
+              : startSlot + 0.5;
+      centers.set(id, center);
+    };
+
+    place(rootId, 0);
+
+    const depth = list.length - 1;
+
+    const branchOf = new Map<string, "left" | "right">();
+    const walk = (id: string, branch: "left" | "right") => {
+      if (branchOf.has(id)) return;
+      branchOf.set(id, branch);
+      const entry = byId.get(id);
+      if (!entry) return;
+      const parents = treeParents(entry.tie);
+      if (parents.home) walk(parents.home, branch);
+      if (parents.away) walk(parents.away, branch);
+    };
+    walk(rootParents.home, "left");
+    walk(rootParents.away, "right");
+
+    const columnX = (column: number) => TREE.pad + column * (TREE.cardW + TREE.gap);
+    const boxes: TreeBox[] = [];
+
+    for (const [id, entry] of byId) {
+      const branch = branchOf.get(id);
+      if (!branch) continue;
+      const column = branch === "left" ? entry.roundIndex : 2 * depth - entry.roundIndex;
+      boxes.push({
+        id,
+        tie: entry.tie,
+        roundIndex: entry.roundIndex,
+        branch,
+        column,
+        x: columnX(column),
+        centerY: TREE.header + (centers.get(id) ?? 0) * TREE.row,
+        isRoot: false,
+      });
+    }
+
+    boxes.push({
+      id: rootId,
+      tie: rootTie,
+      roundIndex: depth,
+      branch: "center",
+      column: depth,
+      x: columnX(depth),
+      centerY: TREE.header + (totalSlots / 2) * TREE.row,
+      isRoot: true,
+    });
+
+    const byBoxId = new Map(boxes.map((box) => [box.id, box]));
+
+    const titles: Array<{ x: number; text: string }> = [];
+    for (const box of boxes) {
+      if (titles.some((title) => title.x === box.x)) continue;
+      titles.push({ x: box.x, text: list[box.roundIndex]?.title ?? "" });
+    }
+    titles.sort((a, b) => a.x - b.x);
+
+    const paths: string[] = [];
+
+    // Every tie joins the tie it produced: the feeder draws the horizontal
+    // stub and the vertical at the tie's inner edge, and the vertical ends on
+    // the tie's own line, so the two feeders of a tie share one vertical the
+    // way a poster draws it.
+    for (const parent of boxes) {
+      if (parent.isRoot) continue;
+      const verticalX = parent.branch === "left" ? parent.x : parent.x + TREE.cardW;
+
+      const parents = treeParents(parent.tie);
+      for (const side of ["home", "away"] as const) {
+        const childId = parents[side];
+        if (!childId) continue;
+        const child = byBoxId.get(childId);
+        if (!child) continue;
+        const from = child.branch === "left" ? child.x + TREE.cardW : child.x;
+        paths.push(`M ${from} ${child.centerY} H ${verticalX}`);
+        paths.push(`M ${verticalX} ${child.centerY} V ${parent.centerY}`);
+      }
+    }
+
+    // The final: both branches converge into the card in the middle.
+    const leftChild = byBoxId.get(rootParents.home);
+    const rightChild = byBoxId.get(rootParents.away);
+    if (leftChild && rightChild) {
+      const leftJoin = rootBoxX(boxes) - 26;
+      paths.push(`M ${leftChild.x + TREE.cardW} ${leftChild.centerY} H ${leftJoin}`);
+      paths.push(`M ${leftJoin} ${leftChild.centerY} V ${rootBoxY(boxes)}`);
+      paths.push(`M ${leftJoin} ${rootBoxY(boxes)} H ${rootBoxX(boxes)}`);
+
+      const rightJoin = rootBoxX(boxes) + TREE.cardW + 26;
+      paths.push(`M ${rightChild.x} ${rightChild.centerY} H ${rightJoin}`);
+      paths.push(`M ${rightJoin} ${rightChild.centerY} V ${rootBoxY(boxes)}`);
+      paths.push(`M ${rootBoxX(boxes) + TREE.cardW} ${rootBoxY(boxes)} H ${rightJoin}`);
+    }
+
+    const width = TREE.pad * 2 + (2 * depth + 1) * TREE.cardW + 2 * depth * TREE.gap;
+    const height = TREE.header + totalSlots * TREE.row + TREE.pad;
+
+    return { boxes, paths, titles, width, height };
+  }
+
+  function rootBoxX(boxes: TreeBox[]): number {
+    return boxes.find((box) => box.isRoot)?.x ?? 0;
+  }
+
+  function rootBoxY(boxes: TreeBox[]): number {
+    return boxes.find((box) => box.isRoot)?.centerY ?? 0;
+  }
+
+  /**
+   * One node of the poster: the two clubs with their aggregate score, the
+   * dates of each leg underneath and, on the final only, the host stadium.
+   *
+   * The aggregate is what "cómo fueron pasando" needs at a glance: each club's
+   * goals summed across both legs (venue swaps included), with the shoot-out
+   * digits in parentheses when the tie went to penalties.
+   */
+  function treeCard(box: TreeBox): string {
+    const tie = box.tie;
+    const legs = (Array.isArray(tie.legs) ? tie.legs : []) as Array<Record<string, unknown>>;
+    if (legs.length === 0) return "";
+
+    const homeClub = clubFromLeg(legs[0], "home");
+    const awayClub = clubFromLeg(legs[0], "away");
+    const completed = String(tie.status ?? "") === "completed";
+    const winnerId = completed ? String(tie.winnerId ?? "") : "";
+
+    const playedLegs: Array<Record<string, unknown>> = [];
+    legs.forEach((leg, index) => {
+      if (isPlayedLeg(tie, legs, index)) playedLegs.push(leg);
+    });
+
+    const played = playedLegs.length > 0;
+    const aggregate = goalsBySide(playedLegs, awayClub.id);
+    const pens = played ? pensBySide(playedLegs, awayClub.id) : null;
+
+    const row = (
+      club: { id: string; name: string; logo: string },
+      goals: number,
+      pensDigit: string,
+      isWinner: boolean,
+      isLoser: boolean
+    ): string => {
+      const logo = club.logo
+        ? `<img class="br__node-logo" src="${esc(club.logo)}" alt="" width="16" height="16" loading="lazy">`
+        : `<span class="br__node-logo br__club-logo--placeholder" aria-hidden="true"></span>`;
+      const classes = ["br__node-row"];
+      if (isWinner) classes.push("br__node-row--winner");
+      if (isLoser) classes.push("br__node-row--loser");
+      const score = played
+        ? `<span class="br__node-score">${goals}${
+            pensDigit ? `<small>${esc(pensDigit)}</small>` : ""
+          }</span>`
+        : "";
+      const badge = isWinner
+        ? `<span class="br__winner" role="img" aria-label="Clasificado" title="Clasificado">✓</span>`
+        : "";
+      return `
+        <div class="${classes.join(" ")}">
+          ${logo}
+          <span class="br__node-name" title="${esc(club.name || "Por definir")}">${esc(
+            club.name || "Por definir"
+          )}</span>
+          ${score}
+          ${badge}
+        </div>`;
+    };
+
+    const homeIsWinner = winnerId !== "" && winnerId === homeClub.id;
+    const awayIsWinner = winnerId !== "" && winnerId === awayClub.id;
+
+    const classes = ["br__node"];
+    if (box.isRoot) classes.push("br__node--root");
+
+    const venue = box.isRoot ? String(legs[0]?.venue ?? "") : "";
+    const dates = tieDates(tie);
+
+    // The final is the tallest card (it also names the stadium): its height
+    // grows by one line, still centered on its connector line.
+    const height = TREE.cardH + (venue ? 18 : 0);
+    const position = `left:${box.x}px;top:${box.centerY - height / 2}px;width:${
+      TREE.cardW
+    }px;height:${height}px`;
+
+    return `
+      <article class="${classes.join(" ")}" style="${position}">
+        <div class="br__node-clubs">
+          ${row(homeClub, aggregate.home, pens?.home ?? "", homeIsWinner, awayIsWinner)}
+          ${row(awayClub, aggregate.away, pens?.away ?? "", awayIsWinner, homeIsWinner)}
+        </div>
+        ${dates ? `<p class="br__node-foot">${esc(dates)}</p>` : ""}
+        ${venue ? `<p class="br__node-venue">${esc(venue)}</p>` : ""}
+      </article>
+    `;
+  }
+
+  function renderTree(rounds: Array<Record<string, unknown>>): string {
+    const tree = buildTree(rounds);
+    if (!tree) return "";
+
+    const { boxes, paths, titles, width, height } = tree;
+    const strokes = paths.map((d) => `<path d="${d}" />`).join("");
+    const headers = titles
+      .map(
+        (title) =>
+          `<div class="br__tree-round" style="left:${title.x}px;width:${TREE.cardW}px">${esc(title.text)}</div>`
+      )
+      .join("");
+    const cards = boxes.map(treeCard).join("");
+
+    return `
+      <div class="br__tree-scroll">
+        <div class="br__tree" style="width:${width}px;height:${height}px">
+          <svg class="br__tree-lines" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" aria-hidden="true" focusable="false">
+            <g class="br__tree-strokes">${strokes}</g>
+          </svg>
+          ${headers}
+          ${cards}
+        </div>
+      </div>
+    `;
   }
 
   function setLoading() {
@@ -315,6 +697,14 @@ const { competition, heading } = Astro.props;
     });
   }
 
+  // The tree is wider than the screen: open it on the final, the node the
+  // diagram is built around, and let the rounds scroll out from there.
+  function centerTree(): void {
+    const scroller = panel.querySelector<HTMLElement>(".br__tree-scroll");
+    if (!scroller) return;
+    scroller.scrollLeft = Math.max(0, (scroller.scrollWidth - scroller.clientWidth) / 2);
+  }
+
   async function load(force = false) {
     if (inFlight) return;
 
@@ -322,6 +712,7 @@ const { competition, heading } = Astro.props;
       const cached = cache.get(competition);
       if (cached && Date.now() - cached.at < CACHE_TTL_MS) {
         panel.innerHTML = cached.html;
+        centerTree();
         return;
       }
     }
@@ -338,6 +729,7 @@ const { competition, heading } = Astro.props;
       const html = renderBracket(payload);
       cache.set(competition, { html, at: Date.now() });
       panel.innerHTML = html;
+      centerTree();
     } catch {
       setError();
     } finally {
@@ -621,7 +1013,145 @@ const { competition, heading } = Astro.props;
     text-transform: uppercase;
   }
 
-  /* ----- Desktop: classic bracket columns with horizontal scroll ----- */
+  /* ----- The bracket tree: the final in the middle, both branches mirrored ----- */
+  .br__tree-scroll {
+    display: none;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding-bottom: var(--space-2);
+  }
+
+  .br__tree {
+    position: relative;
+  }
+
+  .br__tree-lines {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+  }
+
+  .br__tree-strokes path {
+    fill: none;
+    stroke: var(--color-border-strong);
+    stroke-width: 1.5;
+  }
+
+  .br__tree-round {
+    position: absolute;
+    top: 0;
+    height: 18px;
+    color: var(--color-accent);
+    font-size: 9.5px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .br__node {
+    position: absolute;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 1px;
+    min-width: 0;
+    background: var(--color-surface-raised);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    padding: 4px 6px;
+    overflow: hidden;
+  }
+
+  .br__node--root {
+    border-color: var(--color-accent);
+    box-shadow: 0 0 0 1px rgb(182 240 74 / 25%);
+  }
+
+  .br__node-clubs {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    min-width: 0;
+  }
+
+  .br__node-row {
+    display: grid;
+    grid-template-columns: 14px minmax(0, 1fr) auto auto;
+    align-items: center;
+    gap: 4px;
+    min-width: 0;
+    padding: 1px 2px;
+    border-radius: var(--radius-sm);
+    font-size: 10.5px;
+    font-weight: 600;
+    line-height: 1.2;
+  }
+
+  .br__node-row--winner {
+    background: rgb(182 240 74 / 8%);
+    color: var(--color-text);
+  }
+
+  .br__node-row--loser {
+    color: var(--color-text-muted);
+    opacity: 0.6;
+  }
+
+  .br__node-logo {
+    width: 14px;
+    height: 14px;
+    object-fit: contain;
+  }
+
+  .br__node-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .br__node-score {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 2px;
+    font-size: 11.5px;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .br__node-score small {
+    color: var(--color-text-muted);
+    font-size: 8.5px;
+    font-weight: 700;
+  }
+
+  .br__node-foot,
+  .br__node-venue {
+    margin: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 8.5px;
+    letter-spacing: 0.02em;
+  }
+
+  .br__node-foot {
+    margin-top: 2px;
+    border-top: 1px solid var(--color-border);
+    padding-top: 2px;
+    color: var(--color-text-muted);
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .br__node-venue {
+    color: var(--color-text-soft);
+    font-weight: 600;
+  }
+
+  /* ----- Desktop: the poster tree (the stacked rounds stay for mobile) ----- */
   @media (min-width: 901px) {
     .br__rounds {
       flex-direction: row;
@@ -629,6 +1159,14 @@ const { competition, heading } = Astro.props;
       gap: var(--space-4);
       overflow-x: auto;
       padding-bottom: var(--space-2);
+    }
+
+    .br__rounds--tree {
+      display: none;
+    }
+
+    .br__tree-scroll {
+      display: block;
     }
 
     .br__round + .br__round {

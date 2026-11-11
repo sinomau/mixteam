@@ -63,9 +63,9 @@ export function isCompetitionKey(value: string): value is CompetitionKey {
  * Reach past today. Scheduled ties must already render as pending (S6: the
  * final is its own round before kickoff — the 2026 Sudamericana final on
  * 21 Nov, Libertadores final on 28 Nov, Copa Argentina final on 2 Dec). Thirty
- * days covers those without touching placeholders: ESPN lists the Copa
- * Argentina final with "TBD Home"/"TBD Away" sides, which we skip. Set to 0 to
- * cut at today.
+ * days covers all three. A slot whose clubs are not decided yet ("TBD Home")
+ * keeps its tie with a blank side, so a final still appears before its
+ * semifinals are played. Set to 0 to cut at today.
  */
 const PROBE_FUTURE_DAYS = 30;
 
@@ -150,19 +150,31 @@ export interface BracketLeg {
   pensHome?: string;
   pensAway?: string;
   dateUtc: string;
+  /** Host stadium when ESPN names one (the CONMEBOL finals always do). */
+  venue?: string;
   /** "completed" | "live" | "pending". */
   status: string;
   live: boolean;
   /** "Ida" | "Vuelta" | "" (single-match ties). */
   legLabel: string;
+  /** True when ESPN does not know one of the sides yet ("TBD Home"). */
+  pendingTeams?: boolean;
 }
 
 export interface BracketTie {
+  /** Stable id (the first leg's event id) — the tree links ties by it. */
+  id: string;
   status: "completed" | "pending";
   /** Localized tie note ("Empatados en el global - PAL Gana 5-3..."), may be "". */
   note: string;
   /** Winning team id, "" while pending. */
   winnerId: string;
+  /**
+   * Which tie of the previous round fed each side, by tie id ("" when the club
+   * entered the round directly). This is what turns the rounds into a tree:
+   * the diagram draws the line from the feeder to the tie it produced.
+   */
+  parents: { home: string; away: string };
   /** One or two events, sorted by date ascending. */
   legs: BracketLeg[];
 }
@@ -344,14 +356,22 @@ function toLeg(event: any, comp: any): BracketLeg {
   const played = state !== "pre";
   const pens = parsePens(String(comp.notes?.[0]?.headline ?? ""), competitors);
 
+  // ESPN fills the empty slots of a not-yet-draw final with "TBD Home"/"TBD
+  // Away". The slot belongs to the bracket, but the club does not exist yet:
+  // keep the tie, blank the side.
+  const homePending = isPlaceholderTeam(home.team);
+  const awayPending = isPlaceholderTeam(away.team);
+  // The finals carry their stadium here; the poster prints it under the final.
+  const venue = String(comp.venue?.fullName ?? event.venue?.fullName ?? "").trim();
+
   return {
     id: String(event.id ?? comp.id ?? ""),
-    home: String(home.team?.displayName ?? ""),
-    homeLogo: String(home.team?.logo ?? home.team?.logos?.[0]?.href ?? ""),
-    homeId: String(home.team?.id ?? home.id ?? ""),
-    away: String(away.team?.displayName ?? ""),
-    awayLogo: String(away.team?.logo ?? away.team?.logos?.[0]?.href ?? ""),
-    awayId: String(away.team?.id ?? away.id ?? ""),
+    home: homePending ? "" : String(home.team?.displayName ?? ""),
+    homeLogo: homePending ? "" : String(home.team?.logo ?? home.team?.logos?.[0]?.href ?? ""),
+    homeId: homePending ? "" : String(home.team?.id ?? home.id ?? ""),
+    away: awayPending ? "" : String(away.team?.displayName ?? ""),
+    awayLogo: awayPending ? "" : String(away.team?.logo ?? away.team?.logos?.[0]?.href ?? ""),
+    awayId: awayPending ? "" : String(away.team?.id ?? away.id ?? ""),
     // ESPN reports "0" for a match that has not kicked off; "" reads honestly.
     homeScore: played ? String(home.score ?? "") : "",
     awayScore: played ? String(away.score ?? "") : "",
@@ -359,9 +379,11 @@ function toLeg(event: any, comp: any): BracketLeg {
       ? { pensHome: pens.home, pensAway: pens.away }
       : {}),
     dateUtc: String(event.date ?? comp.date ?? ""),
+    ...(venue ? { venue } : {}),
     status: state === "post" ? "completed" : state === "in" ? "live" : "pending",
     live: state === "in",
     legLabel: "",
+    ...(homePending || awayPending ? { pendingTeams: true } : {}),
   };
 }
 
@@ -463,6 +485,59 @@ function roundRank(key: string): number {
 }
 
 /**
+ * Wire the rounds into a tree: each tie records which tie of the previous
+ * round fed its home side and its away side.
+ *
+ * The link is found through the club: the team that won a tie is the team that
+ * plays in the next round. A side whose club entered the round directly (the
+ * Sudamericana playoffs winners face a direct entrant) has no feeder, and the
+ * diagram leaves that slot empty.
+ *
+ * One case needs a fallback: a final whose clubs are not decided yet lists
+ * "TBD Home"/"TBD Away", so neither side has a club to match. When the final is
+ * the only tie of its round and the previous round has exactly two ties, the
+ * ties nobody claimed are the final's two sides.
+ */
+function linkTies(rounds: Array<{ ties: BracketTie[] }>): void {
+  for (let i = 1; i < rounds.length; i++) {
+    const previous = rounds[i - 1];
+    const current = rounds[i];
+
+    const feeder = new Map<string, string>();
+    for (const tie of previous.ties) {
+      for (const leg of tie.legs) {
+        if (leg.homeId) feeder.set(leg.homeId, tie.id);
+        if (leg.awayId) feeder.set(leg.awayId, tie.id);
+      }
+    }
+
+    const claimed = new Set<string>();
+    for (const tie of current.ties) {
+      const homeId = tie.legs[0]?.homeId ?? "";
+      const awayId = tie.legs[0]?.awayId ?? "";
+      const home = homeId ? (feeder.get(homeId) ?? "") : "";
+      const away = awayId ? (feeder.get(awayId) ?? "") : "";
+      tie.parents = { home, away };
+      if (home) claimed.add(home);
+      if (away) claimed.add(away);
+    }
+
+    if (current.ties.length === 1 && previous.ties.length === 2) {
+      const tie = current.ties[0];
+      const orphans = previous.ties.filter((candidate) => !claimed.has(candidate.id));
+      if (orphans.length === 2) {
+        // Both sides still say "TBD Home"/"TBD Away" (a final before its
+        // semifinals are played): the two unclaimed ties ARE its two sides.
+        tie.parents = { home: orphans[0].id, away: orphans[1].id };
+      } else if (orphans.length === 1) {
+        if (!tie.parents.home) tie.parents.home = orphans[0].id;
+        else if (!tie.parents.away) tie.parents.away = orphans[0].id;
+      }
+    }
+  }
+}
+
+/**
  * Pure mapper: raw ESPN scoreboard events -> the bracket JSON shape.
  * Exported so the mapping can be verified without hitting the network.
  */
@@ -482,7 +557,7 @@ export function mapBracketEvents(competition: CompetitionKey, events: any[]): Br
     seen.add(eventId);
 
     const competitors = Array.isArray(comp.competitors) ? comp.competitors : [];
-    if (competitors.some((c: any) => isPlaceholderTeam(c?.team))) continue;
+    const pendingTeams = competitors.some((c: any) => isPlaceholderTeam(c?.team));
 
     const round = resolveRound(event, comp);
     if (!round) continue;
@@ -491,11 +566,14 @@ export function mapBracketEvents(competition: CompetitionKey, events: any[]): Br
       .map((c: any) => String(c?.team?.id ?? c?.id ?? ""))
       .filter(Boolean)
       .sort();
-    if (teamIds.length < 2) continue;
+    // A tie needs two sides. A slot whose club is not known yet ("TBD Home")
+    // still belongs to the bracket, so the event id keys it instead: every
+    // placeholder event would otherwise share the same team ids.
+    if (teamIds.length < 2 && !pendingTeams) continue;
 
     const byTie: Map<string, { title: string; legs: StagedLeg[] }> =
       groups.get(round.key) ?? new Map<string, { title: string; legs: StagedLeg[] }>();
-    const tieKey = teamIds.join("-");
+    const tieKey = pendingTeams ? `event:${eventId}` : teamIds.join("-");
     const group: { title: string; legs: StagedLeg[] } = byTie.get(tieKey) ?? {
       title: round.title,
       legs: [],
@@ -528,9 +606,11 @@ export function mapBracketEvents(competition: CompetitionKey, events: any[]): Br
       ties.push({
         firstDate: staged[0]?.dateMs ?? 0,
         tie: {
+          id: legs[0]?.id ?? "",
           status: completed ? "completed" : "pending",
           note: tieNote(staged),
           winnerId: completed ? tieWinnerId(staged) : "",
+          parents: { home: "", away: "" },
           legs,
         },
       });
@@ -546,6 +626,7 @@ export function mapBracketEvents(competition: CompetitionKey, events: any[]): Br
   }
 
   rounds.sort((a, b) => roundRank(a.key) - roundRank(b.key) || a.firstDate - b.firstDate);
+  linkTies(rounds);
 
   return {
     competition,
